@@ -839,6 +839,28 @@ body {
   cursor: pointer;
 }
 
+/* New two-pane file manager */
+.file-manager-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  border-top: 1px solid var(--window-border-dark);
+}
+
+.file-tree {
+  width: 200px;
+  overflow-y: auto;
+  border-right: 1px solid var(--window-border-dark);
+  padding: 4px;
+}
+
+.file-details {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/* Legacy content container for other panels */
 .file-manager-content {
   flex: 1;
   overflow-y: auto;
@@ -858,6 +880,31 @@ body {
 .file-item:hover {
   background: var(--selection-bg);
   color: #ffffff;
+}
+
+.file-item.selected {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+.tree-item {
+  cursor: pointer;
+  padding: 2px;
+}
+
+.tree-item:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+.tree-children {
+  margin-left: 12px;
+}
+
+/* Sheet tabs */
+.sheet-tab {
+  display: flex;
+  align-items: center;
 }
 
 .file-item img {

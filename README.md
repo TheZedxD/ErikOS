@@ -14,16 +14,15 @@ This project implements a Windows‑95 inspired desktop environment that runs en
 * **Link Editor** – A hierarchical tree‑view editor for organising custom shortcuts.  You can create folders, add links inside any folder, drag and drop items to reorder them and delete entries.  Links are stored on your profile and appear in the Spotlight overlay.
 * **Context menus** – Right‑click anywhere on the desktop, on an icon, on a window or on a taskbar button to access relevant actions such as Open, Rename, Minimise or Close.  A placeholder “Ask AI…” item hints at future integration with multimodal models.
 * **Notepad** – A fully featured text editor powered by CodeMirror 5.  In addition to syntax highlighting and line numbers, the revamped Notepad includes a toolbar with buttons for **New**, **Open**, **Save**, **Save As**, **Undo**, **Redo** and **Word Wrap**.  Word wrap can be toggled on or off, and undo/redo operations are performed through CodeMirror’s history API.  Files are opened and saved using the File System Access API when available, falling back to a download when necessary.  The editor automatically resizes with its window and smart indentation is enabled.
-* **File Manager** – Browse the contents of a local folder and double‑click text files to open them in Notepad.  Uses `window.showDirectoryPicker()` with graceful degradation in unsupported browsers.
+* **File Manager** – A two‑pane browser with a directory tree on the left and file details on the right.  Includes search, and supports opening files, creating folders, renaming, deleting and uploading items via Flask endpoints such as `/api/list-directory`.  Text and image files open in the appropriate applications, and CSV/XLSX files can be sent to the Sheets app for import or export.
 * **Terminal** – A lightweight terminal interface.  A few built‑in commands (`help`, `clear`, `theme` and `about`) are provided locally.  Any other command is sent to the Flask backend’s `/api/execute-command` endpoint and executed on the host system, subject to a whitelist of safe commands (e.g. `ls`, `dir`, `echo`, `ping`).  The output is streamed back and displayed in the terminal.
 * **System Processes** – Monitor and control background scripts started via the API.  The System Processes application fetches a list of running scripts from `/api/list-scripts` and allows you to terminate them via `/api/stop-script`.
-* **Settings** – Change the desktop theme (classic, matrix, high contrast, red, pink, Solarized or Vaporwave) and choose a custom wallpaper.  A live preview shows each theme as you hover over it.  Preferences persist across sessions using `localStorage`.
-  The settings application has been redesigned as a tabbed interface.  It groups related options into **Appearance**, **Desktop**, **Account** and **Audio** sections.  In addition to themes and wallpapers, you can now:
+* **Settings** – Change the desktop theme (classic, matrix, high contrast, red, pink, Solarized or Vaporwave) and choose a custom wallpaper.  A live preview shows each theme as you hover over it.  Preferences persist across sessions using `localStorage`.  The settings application groups options into **Appearance**, **Desktop**, **Security**, **Audio** and **Advanced** tabs.  In addition to themes and wallpapers, you can now:
 
-  - Choose between free‑form or snap‑to‑grid icon layouts and decide whether to show the system clock, volume control and quick‑links tray on the taskbar.
-  - Adjust the global volume via a dedicated slider in the **Audio** tab.
-  - Change your account password or remove the password requirement entirely from within the **Account** tab.
-  - Set a custom login background image that appears behind the profile bubbles.
+    - Choose between free‑form or snap‑to‑grid icon layouts, decide which applications appear on the desktop, pick custom icons for each app and toggle the taskbar clock, volume icon and quick‑links tray.
+    - Manage passwords and the login screen background from the **Security** tab.
+    - Adjust the global volume via a dedicated slider in the **Audio** tab.
+    - An **Advanced** tab is reserved for future options.
 
   Login backgrounds and wallpapers are stored as data URLs in the browser and do not leave your machine.
 * **Media Player** – Play local audio and video files.  Supports multiple formats via the File System Access API or a file input fallback.  Media elements integrate with the global volume control.
@@ -32,7 +31,7 @@ This project implements a Windows‑95 inspired desktop environment that runs en
 * **Calculator** – A basic calculator supporting the four arithmetic operations, decimal numbers and a clear key.
 * **Paint** – Draw freehand on a canvas, choose colours, change brush size, clear your artwork or save it as a PNG.  The Paint application has been upgraded with a toolbar that includes a brush and an eraser, adjustable brush sizes, a colour picker and the ability to insert images onto the canvas.  Coordinates have been corrected so drawing follows the cursor precisely.
 
-* **Sheets** – A lightweight spreadsheet application enabling you to open, edit and save simple CSV spreadsheets.  The Sheets app now supports **multiple sheets** within a single workbook: a tab bar at the top lets you switch between sheets, rename them or add new ones.  Each sheet can be imported from or exported to a CSV file via the **Open** and **Save** buttons.  Within a sheet you can add rows or columns, and edit cell values directly.  Complex formats such as `.xls` or `.xlsx` are not currently supported, so please convert spreadsheets to CSV before importing.
+* **Sheets** – A lightweight spreadsheet application supporting multiple worksheets per workbook.  Tabs above the grid let you add, rename, delete and reorder sheets.  Import or export data as CSV or XLSX (via SheetJS) using the **Open** and **Save** buttons.  The CSV parser preserves quoted fields and column counts, and you can add rows or columns and edit cell values directly.
 * **Gallery** – Select images from your computer to view as thumbnails; click any thumbnail to open a larger viewer.
 * **Temperature Converter** – Convert between Celsius, Fahrenheit and Kelvin with immediate results.
 * **Sound Recorder** – Capture audio from your microphone using the MediaRecorder API.  Recordings can be played back and downloaded.
