@@ -199,14 +199,29 @@ class WindowManager {
     win.append(contentContainer);
     this.desktop.append(win);
 
-    // After adding to the DOM, centre the window within the desktop.
-    // Compute sizes in the next event loop tick to ensure correct
-    // measurements.  Apply a small cascading offset for multiple windows.
+    // Observe content size and keep inner elements like canvases or editors
+    // fitting the window's content area.
+    const resizeObserver = new ResizeObserver(() => {
+      const rect = contentContainer.getBoundingClientRect();
+      contentContainer.querySelectorAll('canvas').forEach(cv => {
+        cv.width = rect.width;
+        cv.height = rect.height;
+      });
+      contentContainer.querySelectorAll('.CodeMirror').forEach(cmEl => {
+        if (cmEl.CodeMirror) cmEl.CodeMirror.refresh();
+      });
+    });
+    resizeObserver.observe(contentContainer);
+
+    // After adding to the DOM, centre the window within the viewport while
+    // accounting for the taskbar height. Apply a small cascading offset for
+    // multiple windows.
     requestAnimationFrame(() => {
-      const deskRect = this.desktop.getBoundingClientRect();
       const winRect = win.getBoundingClientRect();
-      const left = Math.max(0, (deskRect.width - winRect.width) / 2 + offset);
-      const top = Math.max(0, (deskRect.height - winRect.height) / 2 + offset);
+      const taskbarEl = document.getElementById('taskbar');
+      const taskbarHeight = taskbarEl ? taskbarEl.offsetHeight : 0;
+      const left = Math.max(0, (window.innerWidth - winRect.width) / 2 + offset);
+      const top = Math.max(0, (window.innerHeight - taskbarHeight - winRect.height) / 2 + offset);
       win.style.left = `${left}px`;
       win.style.top = `${top}px`;
     });
@@ -356,21 +371,22 @@ class WindowManager {
     winEl.append(handle);
     let startX, startY, startW, startH;
     const onPointerMove = (e) => {
-      const newW = Math.max(200, startW + (e.clientX - startX));
-      const newH = Math.max(100, startH + (e.clientY - startY));
+      const deskRect = this.desktop.getBoundingClientRect();
+      const maxW = deskRect.width - winEl.offsetLeft;
+      const maxH = deskRect.height - winEl.offsetTop;
+      const newW = Math.min(Math.max(200, startW + (e.clientX - startX)), maxW);
+      const newH = Math.min(Math.max(100, startH + (e.clientY - startY)), maxH);
       winEl.style.width = `${newW}px`;
       winEl.style.height = `${newH}px`;
+      const resizeEvent = new CustomEvent('resized', {
+        bubbles: false,
+        detail: { width: newW, height: newH }
+      });
+      winEl.dispatchEvent(resizeEvent);
     };
     const onPointerUp = () => {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
-      // Dispatch a custom event signalling that resizing finished.  Apps can
-      // listen for this event on the window element to refresh layouts.
-      const resizeEvent = new CustomEvent('resized', {
-        bubbles: false,
-        detail: { width: winEl.offsetWidth, height: winEl.offsetHeight }
-      });
-      winEl.dispatchEvent(resizeEvent);
     };
     handle.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -1004,6 +1020,7 @@ function initDesktop() {
     icon.tabIndex = 0;
     icon.dataset.appId = app.id;
     icon.innerHTML = `<img src="${app.icon}" alt="${app.name} icon"><span>${app.name}</span>`;
+    desktop.append(icon);
     // Position icons based on layout
     if (layout === 'free') {
       // Retrieve saved position if available
@@ -1027,24 +1044,18 @@ function initDesktop() {
         }
         freeIndex++;
       }
-      // Attach drag functionality
-      attachIconDrag(icon, app.id);
+      clampIconPosition(icon);
+      // Attach drag functionality with launch-on-click behaviour
+      attachIconDrag(icon, app);
     } else {
       // Grid layout: let CSS handle positioning
       icon.style.left = '';
       icon.style.top = '';
+      icon.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        app.launch();
+      });
     }
-    // Double click launches the application.  Avoid launching if the icon was
-    // just dragged.  attachIconDrag sets an internal `_wasDragged` flag.
-    icon.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      if (icon._wasDragged) {
-        // Reset flag for future interactions
-        icon._wasDragged = false;
-        return;
-      }
-      app.launch();
-    });
     // Single click focuses icon
     icon.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1052,7 +1063,6 @@ function initDesktop() {
       document.querySelectorAll('.icon.selected').forEach(el => el.classList.remove('selected'));
       icon.classList.add('selected');
     });
-    desktop.append(icon);
   });
 
   // Start menu search and items
@@ -1119,23 +1129,33 @@ function setIconLayout(layout) {
   initDesktop();
 }
 
+function clampIconPosition(icon) {
+  const desktopRect = document.getElementById('desktop').getBoundingClientRect();
+  const iconRect = icon.getBoundingClientRect();
+  let x = parseInt(icon.style.left, 10) || 0;
+  let y = parseInt(icon.style.top, 10) || 0;
+  const maxLeft = desktopRect.width - iconRect.width;
+  const maxTop = desktopRect.height - iconRect.height;
+  x = Math.min(Math.max(0, x), maxLeft);
+  y = Math.min(Math.max(0, y), maxTop);
+  icon.style.left = `${x}px`;
+  icon.style.top = `${y}px`;
+}
+
 /**
  * Attach dragging capability to an icon.  Only active when the current
  * layout mode is 'free'.  Saves the icon position on drop.
  * @param {HTMLElement} icon
- * @param {string} appId
+ * @param {object} app
  */
-function attachIconDrag(icon, appId) {
-  let startX, startY, startLeft, startTop;
-    const onMove = (e) => {
+function attachIconDrag(icon, app) {
+  let startX, startY, startLeft, startTop, moved;
+  const onMove = (e) => {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
+    if (!moved && Math.hypot(dx, dy) > 5) moved = true;
     let newLeft = startLeft + dx;
     let newTop = startTop + dy;
-    // Constrain icon within desktop bounds when dragging to prevent it
-    // disappearing off screen.  Compute allowable range based on desktop
-    // dimensions and icon size.  Note: desktop may have different
-    // dimensions in grid/free modes.
     const desktopRect = document.getElementById('desktop').getBoundingClientRect();
     const iconRect = icon.getBoundingClientRect();
     const maxLeft = desktopRect.width - iconRect.width;
@@ -1145,34 +1165,29 @@ function attachIconDrag(icon, appId) {
     icon.style.left = `${newLeft}px`;
     icon.style.top = `${newTop}px`;
   };
-    const onUp = () => {
+  const onUp = (e) => {
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
     icon.classList.remove('dragging');
-    // Persist new position
-    if (currentUser && currentUser.iconPositions) {
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+    if (dx < 5 && dy < 5) {
+      app.launch();
+    } else if (currentUser && currentUser.iconPositions) {
       const x = parseInt(icon.style.left, 10) || 0;
       const y = parseInt(icon.style.top, 10) || 0;
-      currentUser.iconPositions[appId] = { x, y };
+      currentUser.iconPositions[app.id] = { x, y };
       saveProfiles(profiles);
     }
-    // Mark that a drag occurred to prevent launching the app on double click.
-    // Instead of using a dataset attribute (which can persist across sessions),
-    // attach a transient property on the element.  It will be reset after
-    // a short timeout.
-    icon._wasDragged = true;
-    setTimeout(() => {
-      icon._wasDragged = false;
-    }, 300);
   };
   icon.addEventListener('pointerdown', (e) => {
-    // Only left button and only when in free layout
     if (e.button !== 0) return;
     if (!currentUser || currentUser.iconLayout !== 'free') return;
     startX = e.clientX;
     startY = e.clientY;
     startLeft = parseInt(icon.style.left, 10) || 0;
     startTop = parseInt(icon.style.top, 10) || 0;
+    moved = false;
     icon.classList.add('dragging');
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp);
@@ -3100,20 +3115,32 @@ function openChat() {
     try {
       const res = await fetch('/api/ollama/models');
       const data = await res.json();
-      const models = Array.isArray(data.models) && data.models.length > 0 ? data.models : ['llama2'];
-      models.forEach((name) => {
+      modelSelect.innerHTML = '';
+      const models = Array.isArray(data.models) ? data.models : [];
+      if (models.length) {
+        models.forEach((name) => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          modelSelect.append(opt);
+        });
+        modelSelect.disabled = false;
+      } else {
         const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
+        opt.value = '';
+        opt.textContent = 'No models';
         modelSelect.append(opt);
-      });
-      modelSelect.disabled = false;
+        modelSelect.disabled = true;
+        appendMessage('system', data.error || 'No models detected—please install models or check Ollama\'s configuration');
+      }
     } catch (err) {
+      modelSelect.innerHTML = '';
       const opt = document.createElement('option');
-      opt.value = 'unavailable';
+      opt.value = '';
       opt.textContent = 'Unavailable';
       modelSelect.append(opt);
       modelSelect.disabled = true;
+      appendMessage('system', 'Failed to fetch models');
     }
   }
   fetchModels();
@@ -3156,6 +3183,8 @@ function openChat() {
     } catch (err) {
       placeholder.remove();
       appendMessage('assistant', 'Error contacting model');
+    } finally {
+      fetchModels();
     }
   });
 }

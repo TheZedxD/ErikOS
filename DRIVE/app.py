@@ -44,55 +44,75 @@ processes: dict[int, subprocess.Popen] = {}
 ALLOWED_COMMANDS = {"ls", "dir", "echo", "ping"}
 
 
-@app.route("/api/ollama/models")
-def list_ollama_models():
-    """Return a list of available models from the local Ollama installation.
+def _scan_model_dirs() -> list[str]:
+    """Return model names by scanning known model directories."""
+    dirs = []
+    env_dir = os.environ.get("OLLAMA_MODELS")
+    if env_dir:
+        dirs.append(Path(env_dir))
+    dirs.extend([
+        Path.home() / ".ollama" / "models",
+        Path("/usr/share/ollama/models"),
+    ])
+    models: set[str] = set()
+    for d in dirs:
+        if d.is_dir():
+            for f in d.rglob("*"):
+                if f.suffix in {".bin", ".gguf"}:
+                    models.add(f.stem)
+    return sorted(models)
 
-    First attempts to call `ollama list --json` which returns a JSON
-    structure describing installed models.  If the JSON output cannot be
-    parsed or the command fails, falls back to parsing the plain text
-    output of `ollama list` by ignoring the header line.  If the
-    `ollama` executable is not found, an empty list and an error
-    message are returned.
-    """
+
+def detect_ollama_models() -> tuple[list[str], str | None]:
+    """Detect installed Ollama models returning (models, error)."""
+    models: list[str] = []
+    error: str | None = None
     try:
-        # Try JSON output first for reliable parsing
-        result = subprocess.run(["ollama", "list", "--json"], capture_output=True, text=True)
-        models = []
+        result = subprocess.run(
+            ["ollama", "list", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         if result.returncode == 0:
             try:
                 data = json.loads(result.stdout)
-                # Newer versions may return {"models": [ {"name": ...}, ... ]}
                 if isinstance(data, dict) and isinstance(data.get("models"), list):
                     models = [m.get("name") for m in data["models"] if m.get("name")]
-                # Older versions may return a list directly
                 elif isinstance(data, list):
                     models = [m.get("name") or m.get("model") or m for m in data]
-                else:
-                    # Unexpected structure
-                    pass
-                return jsonify({"models": models})
             except Exception:
-                # Fall back to plain text parsing
-                pass
-        # Fallback: plain text parsing, skip header row if present
-        result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
-        if result.returncode != 0:
-            return jsonify({"models": [], "error": result.stderr.strip()}), 500
-        for i, line in enumerate(result.stdout.splitlines()):
-            parts = line.strip().split()
-            # Skip header lines containing keywords
-            if not parts:
-                continue
-            if i == 0 and ("MODEL" in parts[0].upper() or "NAME" in parts[0].upper()):
-                continue
-            models.append(parts[0])
-        return jsonify({"models": models})
+                app.logger.exception("Failed parsing ollama JSON output")
+        else:
+            app.logger.warning(
+                "ollama list returned %s: %s",
+                result.returncode,
+                result.stderr.strip(),
+            )
     except FileNotFoundError:
-        # ollama not installed
-        return jsonify({"models": [], "error": "ollama executable not found"}), 500
+        error = "ollama executable not found"
     except Exception as exc:
-        return jsonify({"models": [], "error": str(exc)}), 500
+        error = str(exc)
+        app.logger.exception("Error running 'ollama list'")
+
+    if not models:
+        models = _scan_model_dirs()
+    if not models and error is None:
+        error = "No Ollama models detected"
+    return models, error
+
+
+
+@app.route("/api/ollama/models")
+def list_ollama_models():
+    """Return a list of available models from the local Ollama installation."""
+    models, error = detect_ollama_models()
+    if not models:
+        return jsonify({"models": [], "error": error}), 500
+    resp = {"models": models}
+    if error:
+        resp["warning"] = error
+    return jsonify(resp)
 
 
 @app.route("/api/ollama", methods=["POST"])
@@ -109,18 +129,25 @@ def run_ollama():
     prompt = data.get("prompt") or ""
     if not prompt:
         return jsonify({"error": "prompt is required"}), 400
+    models, err = detect_ollama_models()
+    if model not in models:
+        return jsonify({"error": f"model '{model}' is not installed"}), 400
     try:
-        result = subprocess.run([
-            "ollama",
-            "run",
-            model,
-            prompt
-        ], capture_output=True, text=True)
+        result = subprocess.run(
+            ["ollama", "run", model, prompt],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
         if result.returncode != 0:
+            app.logger.error("ollama run failed: %s", result.stderr.strip())
             return jsonify({"error": result.stderr.strip()}), 500
-        # Return the raw stdout as the response
         return jsonify({"response": result.stdout.strip()})
+    except FileNotFoundError:
+        app.logger.exception("ollama executable not found while running model")
+        return jsonify({"error": "ollama executable not found"}), 500
     except Exception as exc:
+        app.logger.exception("Error running ollama model")
         return jsonify({"error": str(exc)}), 500
 
 
