@@ -1019,7 +1019,10 @@ function initDesktop() {
     icon.setAttribute('role', 'button');
     icon.tabIndex = 0;
     icon.dataset.appId = app.id;
-    icon.innerHTML = `<img src="${app.icon}" alt="${app.name} icon"><span>${app.name}</span>`;
+    const iconSrc = currentUser && currentUser.customIcons && currentUser.customIcons[app.id]
+      ? currentUser.customIcons[app.id]
+      : app.icon;
+    icon.innerHTML = `<img src="${iconSrc}" alt="${app.name} icon"><span>${app.name}</span>`;
     desktop.append(icon);
     // Position icons based on layout
     if (layout === 'free') {
@@ -1078,7 +1081,10 @@ function initDesktop() {
       .forEach(app => {
         const li = document.createElement('li');
         li.dataset.appId = app.id;
-        li.innerHTML = `<img src="${app.icon}" alt=""> ${app.name}`;
+        const iconSrc = currentUser && currentUser.customIcons && currentUser.customIcons[app.id]
+          ? currentUser.customIcons[app.id]
+          : app.icon;
+        li.innerHTML = `<img src="${iconSrc}" alt=""> ${app.name}`;
         li.addEventListener('click', () => {
           app.launch();
           startMenu.style.display = 'none';
@@ -1559,48 +1565,176 @@ function openNotepad(initialText = '') {
  * shown.
  */
 function openFileManager() {
+  addLog('File Manager opened');
   const container = document.createElement('div');
   container.classList.add('file-manager');
   const toolbar = document.createElement('div');
   toolbar.classList.add('file-manager-toolbar');
-  const openDirBtn = document.createElement('button');
-  openDirBtn.textContent = 'Open Directory';
-  toolbar.append(openDirBtn);
-  const content = document.createElement('div');
-  content.classList.add('file-manager-content');
-  container.append(toolbar, content);
+  const newFolderBtn = document.createElement('button'); newFolderBtn.textContent = 'New Folder';
+  const uploadBtn = document.createElement('button'); uploadBtn.textContent = 'Upload';
+  const renameBtn = document.createElement('button'); renameBtn.textContent = 'Rename';
+  const deleteBtn = document.createElement('button'); deleteBtn.textContent = 'Delete';
+  const refreshBtn = document.createElement('button'); refreshBtn.textContent = 'Refresh';
+  const searchInput = document.createElement('input'); searchInput.type = 'text'; searchInput.placeholder = 'Search';
+  toolbar.append(newFolderBtn, uploadBtn, renameBtn, deleteBtn, refreshBtn, searchInput);
+  const body = document.createElement('div');
+  body.classList.add('file-manager-body');
+  const tree = document.createElement('div'); tree.classList.add('file-tree');
+  const details = document.createElement('div'); details.classList.add('file-details');
+  body.append(tree, details);
+  container.append(toolbar, body);
   windowManager.createWindow('file-manager', 'File Manager', container);
 
-  openDirBtn.addEventListener('click', async () => {
-    content.innerHTML = '';
-    if (!window.showDirectoryPicker) {
-      content.textContent = 'Your browser does not support directory access.';
+  let currentPath = '';
+  let currentItems = [];
+  let selected = null;
+
+  async function loadDirectory(path) {
+    try {
+      const resp = await fetch(`/api/list-directory?path=${encodeURIComponent(path)}`);
+      const data = await resp.json();
+      if (data.error) {
+        details.textContent = data.error;
+        return;
+      }
+      currentPath = data.path;
+      currentItems = data.items;
+      renderTreeRoot();
+      renderDetails();
+    } catch (err) {
+      details.textContent = 'Failed to load directory';
+    }
+  }
+
+  function renderTreeRoot() {
+    tree.innerHTML = '';
+    const root = document.createElement('div');
+    root.textContent = '/';
+    root.classList.add('tree-item');
+    root.addEventListener('click', () => loadDirectory(''));
+    tree.append(root);
+    buildTree('', root, tree);
+  }
+
+  async function buildTree(path, elem, containerEl) {
+    if (elem.dataset.loaded) return;
+    elem.dataset.loaded = '1';
+    try {
+      const resp = await fetch(`/api/list-directory?path=${encodeURIComponent(path)}`);
+      const data = await resp.json();
+      if (data.error) return;
+      const children = document.createElement('div');
+      children.classList.add('tree-children');
+      data.items.filter(i => i.isDir).forEach(dir => {
+        const child = document.createElement('div');
+        child.textContent = dir.name;
+        child.classList.add('tree-item');
+        child.addEventListener('click', () => loadDirectory(dir.path));
+        children.append(child);
+        child.addEventListener('dblclick', () => buildTree(dir.path, child, children));
+      });
+      containerEl.append(children);
+    } catch {}
+  }
+
+  function renderDetails() {
+    details.innerHTML = '';
+    selected = null;
+    const items = currentItems.filter(i => i.name.toLowerCase().includes(searchInput.value.toLowerCase()));
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.classList.add('file-item');
+      row.textContent = item.name;
+      row.addEventListener('click', () => {
+        details.querySelectorAll('.file-item.selected').forEach(el => el.classList.remove('selected'));
+        row.classList.add('selected');
+        selected = item;
+      });
+      row.addEventListener('dblclick', () => openItem(item));
+      details.append(row);
+    });
+  }
+
+  async function openItem(item) {
+    if (item.isDir) {
+      await loadDirectory(item.path);
       return;
     }
+    const ext = item.name.split('.').pop().toLowerCase();
     try {
-      const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
-      for await (const entry of dirHandle.values()) {
-        const itemEl = document.createElement('div');
-        itemEl.classList.add('file-item');
-        const icon = document.createElement('img');
-        icon.src = entry.kind === 'directory' ? './icons/file-manager.png' : './icons/notepad.png';
-        icon.alt = '';
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = entry.name;
-        itemEl.append(icon, nameSpan);
-        content.append(itemEl);
-        itemEl.addEventListener('dblclick', async () => {
-          if (entry.kind === 'file') {
-            const file = await entry.getFile();
-            const text = await file.text();
-            openNotepad(text);
-          }
-        });
+      if (['txt', 'js', 'json', 'md'].includes(ext)) {
+        const text = await fetch('/' + item.path).then(r => r.text());
+        openNotepad(text);
+      } else if (['png', 'jpg', 'jpeg', 'gif', 'bmp'].includes(ext)) {
+        openGallery(['/' + item.path]);
+      } else if (ext === 'csv') {
+        const text = await fetch('/' + item.path).then(r => r.text());
+        openSheets({ type: 'csv', name: item.name.replace(/\.csv$/,''), content: text });
+      } else if (ext === 'xlsx') {
+        const buf = await fetch('/' + item.path).then(r => r.arrayBuffer());
+        openSheets({ type: 'xlsx', content: buf });
+      } else {
+        window.open('/' + item.path, '_blank');
       }
     } catch (err) {
       console.error(err);
     }
+  }
+
+  searchInput.addEventListener('input', renderDetails);
+  refreshBtn.addEventListener('click', () => loadDirectory(currentPath));
+
+  newFolderBtn.addEventListener('click', async () => {
+    const name = prompt('Folder name');
+    if (!name) return;
+    await fetch('/api/create-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentPath, name })
+    });
+    loadDirectory(currentPath);
   });
+
+  renameBtn.addEventListener('click', async () => {
+    if (!selected) return alert('Select an item first');
+    const newName = prompt('New name', selected.name);
+    if (!newName) return;
+    await fetch('/api/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: selected.path, new_name: newName })
+    });
+    loadDirectory(currentPath);
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    if (!selected) return alert('Select an item first');
+    if (!confirm('Delete ' + selected.name + '?')) return;
+    await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: selected.path })
+    });
+    loadDirectory(currentPath);
+  });
+
+  uploadBtn.addEventListener('click', () => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.style.display = 'none';
+    inp.addEventListener('change', async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('path', currentPath);
+      fd.append('file', file);
+      await fetch('/api/upload', { method: 'POST', body: fd });
+      loadDirectory(currentPath);
+    });
+    inp.click();
+  });
+
+  loadDirectory('');
 }
 
 /**
@@ -1814,15 +1948,6 @@ function openSettings() {
   const resetWallpaperBtn = document.createElement('button');
   resetWallpaperBtn.textContent = 'Reset Wallpaper';
   appearance.append(wallpaperHeading, wallpaperInput, resetWallpaperBtn);
-  // Login background
-  const loginBgHeading = document.createElement('h3');
-  loginBgHeading.textContent = 'Login Background';
-  const loginBgInput = document.createElement('input');
-  loginBgInput.type = 'file';
-  loginBgInput.accept = 'image/*';
-  const resetLoginBgBtn = document.createElement('button');
-  resetLoginBgBtn.textContent = 'Reset Login Background';
-  appearance.append(loginBgHeading, loginBgInput, resetLoginBgBtn);
   // Desktop panel
   const desktopPanel = makePanel('Desktop');
   const layoutHeading = document.createElement('h3');
@@ -1869,6 +1994,10 @@ function openSettings() {
   appsHeading.textContent = 'Desktop Icons';
   desktopPanel.append(appsHeading);
   applications.forEach(app => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '4px';
     const chk = document.createElement('input');
     chk.type = 'checkbox';
     chk.id = `vis-${app.id}`;
@@ -1878,7 +2007,39 @@ function openSettings() {
     const lbl = document.createElement('label');
     lbl.htmlFor = chk.id;
     lbl.append(chk, document.createTextNode(' ' + app.name));
-    // Save on change
+    row.append(lbl);
+
+    // Icon picker controls
+    const iconBtn = document.createElement('button');
+    iconBtn.textContent = 'Icon';
+    const resetIconBtn = document.createElement('button');
+    resetIconBtn.textContent = 'Reset';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/png';
+    fileInput.style.display = 'none';
+    iconBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file || !currentUser) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        currentUser.customIcons = currentUser.customIcons || {};
+        currentUser.customIcons[app.id] = ev.target.result;
+        saveProfiles(profiles);
+        initDesktop();
+      };
+      reader.readAsDataURL(file);
+    });
+    resetIconBtn.addEventListener('click', () => {
+      if (!currentUser || !currentUser.customIcons) return;
+      delete currentUser.customIcons[app.id];
+      saveProfiles(profiles);
+      initDesktop();
+    });
+    row.append(iconBtn, resetIconBtn, fileInput);
+
+    // Save visibility on change
     chk.addEventListener('change', () => {
       if (!currentUser) return;
       const list = currentUser.visibleApps || [];
@@ -1892,10 +2053,10 @@ function openSettings() {
       saveProfiles(profiles);
       initDesktop();
     });
-    desktopPanel.append(lbl);
+    desktopPanel.append(row);
   });
-  // Account panel
-  const accountPanel = makePanel('Account');
+  // Security panel
+  const securityPanel = makePanel('Security');
   if (currentUser) {
     const accHeading = document.createElement('h3');
     accHeading.textContent = 'Account Security';
@@ -1906,7 +2067,7 @@ function openSettings() {
     requireLabel.append(requireChk, document.createTextNode(' Require password at login'));
     const changePwdBtn = document.createElement('button');
     changePwdBtn.textContent = 'Change Password';
-    accountPanel.append(accHeading, requireLabel, changePwdBtn);
+    securityPanel.append(accHeading, requireLabel, changePwdBtn);
     changePwdBtn.addEventListener('click', () => {
       const pwd = prompt('Enter new password (leave blank to remove password)');
       currentUser.password = pwd || null;
@@ -1917,6 +2078,32 @@ function openSettings() {
     requireChk.addEventListener('change', () => {
       currentUser.requirePassword = requireChk.checked && !!currentUser.password;
       saveProfiles(profiles);
+    });
+
+    // Login background controls
+    const loginBgHeading = document.createElement('h3');
+    loginBgHeading.textContent = 'Login Screen Background';
+    const loginBgInput = document.createElement('input');
+    loginBgInput.type = 'file';
+    loginBgInput.accept = 'image/*';
+    const resetLoginBgBtn = document.createElement('button');
+    resetLoginBgBtn.textContent = 'Reset Login Background';
+    securityPanel.append(loginBgHeading, loginBgInput, resetLoginBgBtn);
+
+    loginBgInput.addEventListener('change', () => {
+      const file = loginBgInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        localStorage.setItem('win95-login-bg', dataUrl);
+        alert('Login background updated. It will be applied next time you log out.');
+      };
+      reader.readAsDataURL(file);
+    });
+    resetLoginBgBtn.addEventListener('click', () => {
+      localStorage.removeItem('win95-login-bg');
+      alert('Login background reset. It will revert to the default colour on next login.');
     });
   }
   // Audio panel
@@ -1933,12 +2120,17 @@ function openSettings() {
   volSlider.addEventListener('input', () => {
     setGlobalVolume(parseFloat(volSlider.value));
   });
+  // Advanced panel placeholder
+  const advancedPanel = makePanel('Advanced');
+  advancedPanel.append(document.createTextNode('Advanced settings coming soon.'));
+
   // Create tabs for each panel
   const categories = [
     { name: 'Appearance', panel: appearance },
     { name: 'Desktop', panel: desktopPanel },
-    { name: 'Account', panel: accountPanel },
-    { name: 'Audio', panel: audioPanel }
+    { name: 'Security', panel: securityPanel },
+    { name: 'Audio', panel: audioPanel },
+    { name: 'Advanced', panel: advancedPanel }
   ];
   categories.forEach(({ name, panel }, index) => {
     const btn = document.createElement('button');
@@ -1991,21 +2183,6 @@ function openSettings() {
       localStorage.removeItem('win95-wallpaper');
     }
     document.body.style.backgroundImage = `url('./images/wallpaper.png')`;
-  });
-  loginBgInput.addEventListener('change', () => {
-    const file = loginBgInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      localStorage.setItem('win95-login-bg', dataUrl);
-      alert('Login background updated. It will be applied next time you log out.');
-    };
-    reader.readAsDataURL(file);
-  });
-  resetLoginBgBtn.addEventListener('click', () => {
-    localStorage.removeItem('win95-login-bg');
-    alert('Login background reset. It will revert to the default colour on next login.');
   });
   // Layout radio handlers
   freeRadio.addEventListener('change', () => {
@@ -3196,7 +3373,7 @@ function openChat() {
  * implementation intended to mimic the basics of Google Sheets or Excel
  * without external dependencies.
  */
-function openSheets() {
+function openSheets(fileData) {
   addLog('Sheets opened');
   const container = document.createElement('div');
   container.style.display = 'flex';
@@ -3220,8 +3397,23 @@ function openSheets() {
     }
     return { name: name || `Sheet${sheets.length + 1}`, data: initial };
   }
-  // Start with one sheet
-  sheets.push(createSheet('Sheet1'));
+  // Populate from provided file data if any
+  if (fileData) {
+    try {
+      if (fileData.type === 'csv') {
+        sheets.push({ name: fileData.name || 'Sheet1', data: parseCSV(fileData.content) });
+      } else if (fileData.type === 'xlsx' && typeof XLSX !== 'undefined') {
+        const wb = XLSX.read(fileData.content, { type: 'array' });
+        wb.SheetNames.forEach(n => {
+          const ws = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1 });
+          sheets.push({ name: n, data: ws });
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  if (sheets.length === 0) sheets.push(createSheet('Sheet1'));
   let currentSheetIndex = 0;
   // Toolbar with actions
   const toolbar = document.createElement('div');
@@ -3249,6 +3441,9 @@ function openSheets() {
   function renderTabs() {
     tabsBar.innerHTML = '';
     sheets.forEach((sheet, idx) => {
+      const tab = document.createElement('div');
+      tab.classList.add('sheet-tab');
+      tab.draggable = true;
       const btn = document.createElement('button');
       btn.textContent = sheet.name;
       btn.style.padding = '2px 6px';
@@ -3271,7 +3466,34 @@ function openSheets() {
           renderTabs();
         }
       });
-      tabsBar.append(btn);
+      const close = document.createElement('span');
+      close.textContent = '×';
+      close.style.marginLeft = '4px';
+      close.style.cursor = 'pointer';
+      close.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sheets.splice(idx, 1);
+        if (currentSheetIndex >= sheets.length) currentSheetIndex = sheets.length - 1;
+        if (currentSheetIndex < 0) currentSheetIndex = 0;
+        renderTabs();
+        renderTable();
+      });
+      tab.append(btn, close);
+      tab.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', idx);
+      });
+      tab.addEventListener('dragover', e => e.preventDefault());
+      tab.addEventListener('drop', e => {
+        e.preventDefault();
+        const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        if (from === idx) return;
+        const item = sheets.splice(from, 1)[0];
+        sheets.splice(idx, 0, item);
+        currentSheetIndex = idx;
+        renderTabs();
+        renderTable();
+      });
+      tabsBar.append(tab);
     });
   }
   // Get current sheet data
@@ -3351,82 +3573,103 @@ function openSheets() {
     renderTabs();
     renderTable();
   });
-  // File handling helpers (operate on current sheet only)
-  async function loadCSV(file) {
-    const text = await file.text();
-    const rows = text.split(/\r?\n/).filter(row => row.trim().length > 0);
-    const parsed = rows.map(row => row.split(','));
-    const maxLen = Math.max(...parsed.map(r => r.length));
-    parsed.forEach(r => { while (r.length < maxLen) r.push(''); });
-    setCurrentData(parsed);
-    renderTable();
-  }
-  function downloadCSV() {
-    const data = currentData();
-    const lines = data.map(row => row.map(cell => {
-      if (cell.includes(',') || cell.includes('"')) {
-        return '"' + cell.replace(/"/g, '""') + '"';
+  // CSV helpers
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], cur = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = false;
+        } else {
+          cur += ch;
+        }
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ',') { row.push(cur); cur = ''; }
+        else if (ch === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+        else if (ch === '\r') { /* skip */ }
+        else cur += ch;
       }
-      return cell;
-    }).join(','));
-    const csv = lines.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = sheets[currentSheetIndex].name + '.csv';
-    document.body.append(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    }
+    row.push(cur); rows.push(row);
+    const max = Math.max(...rows.map(r => r.length));
+    rows.forEach(r => { while (r.length < max) r.push(''); });
+    return rows;
   }
+
+  function sheetToCSV(data) {
+    return data.map(row => row.map(cell => {
+      if (/[",\n]/.test(cell)) return '"' + cell.replace(/"/g, '""') + '"';
+      return cell;
+    }).join(',')).join('\n');
+  }
+
   openBtn.addEventListener('click', async () => {
     try {
-      if (window.showOpenFilePicker) {
-        const [fileHandle] = await window.showOpenFilePicker({
-          types: [ { description: 'CSV Files', accept: { 'text/csv': ['.csv'] } } ], multiple: false
-        });
-        const file = await fileHandle.getFile();
-        await loadCSV(file);
-      } else {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.csv';
-        input.style.display = 'none';
-        document.body.append(input);
-        input.addEventListener('change', () => {
-          const file = input.files[0];
-          if (!file) return;
-          loadCSV(file);
-          input.remove();
-        });
-        input.click();
-      }
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,.xlsx';
+      input.style.display = 'none';
+      document.body.append(input);
+      input.addEventListener('change', async () => {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.name.endsWith('.xlsx') && typeof XLSX !== 'undefined') {
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array' });
+          sheets = wb.SheetNames.map(n => ({ name: n, data: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1 }) }));
+          currentSheetIndex = 0;
+        } else {
+          const text = await file.text();
+          setCurrentData(parseCSV(text));
+        }
+        renderTabs();
+        renderTable();
+        input.remove();
+      });
+      input.click();
     } catch (err) {
       console.error(err);
     }
   });
+
   saveBtn.addEventListener('click', async () => {
     try {
+      const opts = {
+        types: [
+          { description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } },
+          { description: 'CSV', accept: { 'text/csv': ['.csv'] } }
+        ],
+        suggestedName: sheets[currentSheetIndex].name
+      };
       if (window.showSaveFilePicker) {
-        const fileHandle = await window.showSaveFilePicker({
-          suggestedName: sheets[currentSheetIndex].name + '.csv',
-          types: [ { description: 'CSV Files', accept: { 'text/csv': ['.csv'] } } ]
-        });
-        const writable = await fileHandle.createWritable();
-        const data = currentData();
-        const lines = data.map(row => row.map(cell => {
-          if (cell.includes(',') || cell.includes('"')) {
-            return '"' + cell.replace(/"/g, '""') + '"';
-          }
-          return cell;
-        }).join(','));
-        const csv = lines.join('\n');
-        await writable.write(csv);
+        const handle = await window.showSaveFilePicker(opts);
+        const writable = await handle.createWritable();
+        if (handle.name.endsWith('.xlsx') && typeof XLSX !== 'undefined') {
+          const wb = XLSX.utils.book_new();
+          sheets.forEach(s => {
+            const ws = XLSX.utils.aoa_to_sheet(s.data);
+            XLSX.utils.book_append_sheet(wb, ws, s.name);
+          });
+          const array = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+          await writable.write(array);
+        } else {
+          const csv = sheetToCSV(currentData());
+          await writable.write(csv);
+        }
         await writable.close();
-        alert('File saved successfully.');
       } else {
-        downloadCSV();
+        const csv = sheetToCSV(currentData());
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = sheets[currentSheetIndex].name + '.csv';
+        document.body.append(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
       }
     } catch (err) {
       console.error(err);

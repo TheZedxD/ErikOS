@@ -198,6 +198,135 @@ def process_icons_endpoint():
         return jsonify({"success": False, "error": str(exc)}), 500
 
 
+# ---------------------------------------------------------------------------
+# File manager endpoints
+# ---------------------------------------------------------------------------
+
+# Base directory that the file manager is allowed to access.  Paths provided
+# by the client are interpreted relative to this directory.  The resolved path
+# is always checked to ensure it does not escape this directory to mitigate
+# directory traversal attacks.
+FILE_BASE = BASE_DIR
+
+
+def _safe_path(rel_path: str) -> Path:
+    """Return an absolute path under FILE_BASE for rel_path.
+
+    Raises ValueError if the resulting path is outside FILE_BASE."""
+    target = (FILE_BASE / rel_path).resolve()
+    if not str(target).startswith(str(FILE_BASE.resolve())):
+        raise ValueError("Path escapes base directory")
+    return target
+
+
+@app.route("/api/list-directory")
+def list_directory():
+    """Return contents of a directory as JSON."""
+    rel = request.args.get("path", "")
+    try:
+        path = _safe_path(rel)
+        if not path.exists() or not path.is_dir():
+            return jsonify({"error": "Not a directory"}), 400
+        items = []
+        for entry in os.scandir(path):
+            info = entry.stat()
+            items.append(
+                {
+                    "name": entry.name,
+                    "path": str(Path(rel) / entry.name),
+                    "isDir": entry.is_dir(),
+                    "size": info.st_size,
+                    "mtime": int(info.st_mtime),
+                }
+            )
+        return jsonify({"items": items, "path": rel})
+    except ValueError:
+        return jsonify({"error": "Invalid path"}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/create-folder", methods=["POST"])
+def create_folder():
+    data = request.get_json(silent=True) or {}
+    rel = data.get("path", "")
+    name = data.get("name")
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    try:
+        path = _safe_path(rel) / name
+        path.mkdir(parents=False, exist_ok=False)
+        return jsonify({"success": True})
+    except FileExistsError:
+        return jsonify({"error": "Folder exists"}), 400
+    except ValueError:
+        return jsonify({"error": "Invalid path"}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/rename", methods=["POST"])
+def rename_item():
+    data = request.get_json(silent=True) or {}
+    rel = data.get("path")
+    new_name = data.get("new_name")
+    if not rel or not new_name:
+        return jsonify({"error": "path and new_name required"}), 400
+    try:
+        src = _safe_path(rel)
+        dst = src.parent / new_name
+        src.rename(dst)
+        return jsonify({"success": True})
+    except FileNotFoundError:
+        return jsonify({"error": "Not found"}), 404
+    except ValueError:
+        return jsonify({"error": "Invalid path"}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/delete", methods=["POST"])
+def delete_item():
+    data = request.get_json(silent=True) or {}
+    rel = data.get("path")
+    if not rel:
+        return jsonify({"error": "path is required"}), 400
+    try:
+        target = _safe_path(rel)
+        if target.is_dir():
+            os.rmdir(target)
+        else:
+            target.unlink()
+        return jsonify({"success": True})
+    except FileNotFoundError:
+        return jsonify({"error": "Not found"}), 404
+    except OSError as exc:
+        # e.g. directory not empty
+        return jsonify({"error": str(exc)}), 400
+    except ValueError:
+        return jsonify({"error": "Invalid path"}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/upload", methods=["POST"])
+def upload_file():
+    rel = request.form.get("path", "")
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "file is required"}), 400
+    try:
+        directory = _safe_path(rel)
+        directory.mkdir(parents=True, exist_ok=True)
+        dest = directory / file.filename
+        file.save(dest)
+        return jsonify({"success": True})
+    except ValueError:
+        return jsonify({"error": "Invalid path"}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/run-script", methods=["POST"])
 def run_script():
     """Start a Python script as a background process.
