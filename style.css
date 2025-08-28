@@ -1,0 +1,911 @@
+/*
+ * Windows‑95 style desktop UI
+ *
+ * This stylesheet defines a set of CSS variables and rules that emulate the
+ * look and feel of the classic Windows 95 operating system.  Themes are
+ * implemented by toggling classes on the <body> element which override
+ * these variables.  New themes can be added by extending the definitions
+ * below.  Colours were chosen to be accessible while retaining a retro
+ * aesthetic.
+ */
+
+/* Base variables for the default (classic) theme */
+:root {
+  --desktop-bg: #008080;
+  --taskbar-bg: #c0c0c0;
+  --taskbar-border-light: #ffffff;
+  --taskbar-border-dark: #404040;
+  --button-bg: #c0c0c0;
+  --btn-border-light: #ffffff;
+  --btn-border-dark: #404040;
+  --window-bg: #c0c0c0;
+  --window-border-light: #ffffff;
+  --window-border-dark: #404040;
+  --title-gradient-light: #000080;
+  --title-gradient-dark: #000060;
+  --icon-text: #000000;
+  --selection-bg: #000080;
+  --font-family: "MS Sans Serif", sans-serif;
+}
+
+/* Matrix‑style theme with green on black */
+.theme-matrix {
+  --desktop-bg: #000000;
+  --taskbar-bg: #001000;
+  --taskbar-border-light: #00ff00;
+  --taskbar-border-dark: #004000;
+  --button-bg: #001800;
+  --btn-border-light: #00ff00;
+  --btn-border-dark: #004000;
+  --window-bg: #000000;
+  --window-border-light: #00ff00;
+  --window-border-dark: #004000;
+  --title-gradient-light: #004000;
+  --title-gradient-dark: #001000;
+  --icon-text: #00ff00;
+  --selection-bg: #004000;
+}
+
+/* High contrast theme for accessibility */
+.theme-highcontrast {
+  --desktop-bg: #000000;
+  --taskbar-bg: #000000;
+  --taskbar-border-light: #ffffff;
+  --taskbar-border-dark: #000000;
+  --button-bg: #000000;
+  --btn-border-light: #ffffff;
+  --btn-border-dark: #000000;
+  --window-bg: #000000;
+  --window-border-light: #ffffff;
+  --window-border-dark: #000000;
+  --title-gradient-light: #303030;
+  --title-gradient-dark: #000000;
+  --icon-text: #ffffff;
+  --selection-bg: #505050;
+}
+
+/* Red theme for a bold look */
+.theme-red {
+  --desktop-bg: #800000;
+  --taskbar-bg: #c08080;
+  --taskbar-border-light: #ffd0d0;
+  --taskbar-border-dark: #400000;
+  --button-bg: #c08080;
+  --btn-border-light: #ffd0d0;
+  --btn-border-dark: #400000;
+  --window-bg: #c08080;
+  --window-border-light: #ffd0d0;
+  --window-border-dark: #400000;
+  --title-gradient-light: #800000;
+  --title-gradient-dark: #400000;
+  --icon-text: #000000;
+  --selection-bg: #400000;
+}
+
+/* Pink theme for a playful touch */
+.theme-pink {
+  --desktop-bg: #ffa0d0;
+  --taskbar-bg: #ffe0f0;
+  --taskbar-border-light: #ffffff;
+  --taskbar-border-dark: #cc80a0;
+  --button-bg: #ffe0f0;
+  --btn-border-light: #ffffff;
+  --btn-border-dark: #cc80a0;
+  --window-bg: #ffe0f0;
+  --window-border-light: #ffffff;
+  --window-border-dark: #cc80a0;
+  --title-gradient-light: #ff80b0;
+  --title-gradient-dark: #cc6080;
+  --icon-text: #602040;
+  --selection-bg: #cc80a0;
+}
+
+/* Solarized Dark theme inspired by the popular colour palette */
+.theme-solarized {
+  --desktop-bg: #002b36;
+  --taskbar-bg: #073642;
+  --taskbar-border-light: #586e75;
+  --taskbar-border-dark: #002b36;
+  --button-bg: #073642;
+  --btn-border-light: #586e75;
+  --btn-border-dark: #002b36;
+  --window-bg: #073642;
+  --window-border-light: #586e75;
+  --window-border-dark: #002b36;
+  --title-gradient-light: #268bd2;
+  --title-gradient-dark: #19507a;
+  --icon-text: #93a1a1;
+  --selection-bg: #268bd2;
+}
+
+/* Vaporwave theme with playful pinks and purples */
+.theme-vaporwave {
+  --desktop-bg: #ff99cc;
+  --taskbar-bg: #ffc8e4;
+  --taskbar-border-light: #ffffff;
+  --taskbar-border-dark: #ff66b3;
+  --button-bg: #ffc8e4;
+  --btn-border-light: #ffffff;
+  --btn-border-dark: #ff66b3;
+  --window-bg: #ffc8e4;
+  --window-border-light: #ffffff;
+  --window-border-dark: #ff66b3;
+  --title-gradient-light: #ff66b3;
+  --title-gradient-dark: #cc3385;
+  --icon-text: #660033;
+  --selection-bg: #ff66b3;
+}
+
+/* Styling for the hierarchical link editor tree */
+.link-tree ul {
+  list-style: none;
+  margin: 4px 0;
+  padding-left: 16px;
+}
+
+.link-tree li {
+  margin: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.link-tree li button {
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 12px;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family);
+  user-select: none;
+}
+
+body {
+  background-color: var(--desktop-bg);
+  /* Wallpaper applied via CSS background image.  The image is defined in
+     main.js based on user settings.  Fallback to our default wallpaper. */
+  background-image: url('./images/wallpaper.png');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Desktop container */
+#desktop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 40px);
+  overflow: hidden;
+}
+
+/* Taskbar */
+#taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background: var(--taskbar-bg);
+  border-top: 2px solid var(--taskbar-border-light);
+  border-bottom: 2px solid var(--taskbar-border-dark);
+  display: flex;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* System clock displayed on the taskbar */
+#system-clock {
+  margin-right: 8px;
+  padding: 0 8px;
+  height: 70%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--icon-text);
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+}
+
+/* System tray container */
+#system-tray {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 4px;
+  height: 100%;
+}
+
+#system-tray img {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  padding: 1px;
+}
+
+/* Tray menu styling */
+#tray-menu {
+  position: fixed;
+  bottom: 40px;
+  right: 8px;
+  background: var(--window-bg);
+  border: 2px solid var(--window-border-dark);
+  box-shadow: 0 0 0 1px var(--window-border-light) inset,
+              0 0 0 2px var(--window-border-dark) inset;
+  list-style: none;
+  padding: 4px;
+  margin: 0;
+  display: none;
+  flex-direction: column;
+  z-index: 2000;
+}
+
+#tray-menu li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#tray-menu li:hover {
+  background: var(--selection-bg);
+  color: #fff;
+}
+
+/* Start button */
+#start-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Remove the gap since the icon is no longer used. */
+  width: 80px;
+  height: 100%;
+  margin: 0 4px;
+  font-size: 14px;
+  background: var(--button-bg);
+  border: none;
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+  outline: none;
+}
+
+/* Area that holds window buttons in the taskbar */
+#taskbar-windows {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  height: 100%;
+}
+
+/* Individual taskbar button */
+.taskbar-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  margin-right: 4px;
+  height: 70%;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.taskbar-item.active {
+  border-top: 2px solid var(--btn-border-dark);
+  border-left: 2px solid var(--btn-border-dark);
+  border-right: 2px solid var(--btn-border-light);
+  border-bottom: 2px solid var(--btn-border-light);
+}
+
+/* Generic window container */
+.window {
+  position: absolute;
+  width: 400px;
+  min-width: 200px;
+  min-height: 150px;
+  background: var(--window-bg);
+  border: 2px solid var(--window-border-dark);
+  box-shadow: 0 0 0 1px var(--window-border-light) inset,
+              0 0 0 2px var(--window-border-dark) inset;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Window title bar */
+.window .title-bar {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  background: linear-gradient(to bottom, var(--title-gradient-light), var(--title-gradient-dark));
+  color: #ffffff;
+  user-select: none;
+  cursor: move;
+}
+
+.window .title-bar .title {
+  flex: 1;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.window .title-bar .controls {
+  display: flex;
+  gap: 4px;
+}
+
+.window .title-bar .controls button {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  line-height: 16px;
+  text-align: center;
+  font-size: 10px;
+  border: none;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
+
+.window .content {
+  flex: 1;
+  background: var(--window-bg);
+  overflow: auto;
+  padding: 4px;
+  font-size: 14px;
+}
+
+/* Desktop icons */
+.icon {
+  position: absolute;
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Grid layout styles for desktop icons */
+#desktop[data-layout='grid'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  padding: 8px;
+}
+
+#desktop[data-layout='grid'] .icon {
+  position: relative;
+  margin: 8px;
+}
+
+/* Chat application styles */
+.chat-messages {
+  font-family: var(--font-family);
+  white-space: pre-wrap;
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  background: var(--selection-bg);
+  color: var(--window-bg);
+  padding: 4px;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.chat-message.assistant {
+  align-self: flex-start;
+  background: var(--window-bg);
+  color: var(--icon-text);
+  padding: 4px;
+  border-radius: 4px;
+  margin: 2px;
+  border: 1px solid var(--window-border-dark);
+}
+
+.chat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+}
+
+/* Settings tabs styling */
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.settings-tabs button {
+  padding: 2px 6px;
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  background: var(--button-bg);
+  cursor: pointer;
+}
+
+.settings-tabs button.active {
+  background: var(--selection-bg);
+  color: var(--window-bg);
+}
+
+/* Visual feedback when dragging icons */
+.icon.dragging {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.icon img {
+  width: 48px;
+  height: 48px;
+}
+
+.icon span {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--icon-text);
+}
+
+/* Start menu (launcher) */
+#start-menu {
+  position: fixed;
+  bottom: 40px;
+  left: 0;
+  width: 240px;
+  background: var(--window-bg);
+  border: 2px solid var(--window-border-dark);
+  box-shadow: 0 0 0 1px var(--window-border-light) inset,
+              0 0 0 2px var(--window-border-dark) inset;
+  padding: 4px;
+  display: none;
+  flex-direction: column;
+  z-index: 1500;
+}
+
+#start-search {
+  width: calc(100% - 8px);
+  margin: 4px 0 6px 0;
+  padding: 4px;
+  border: 1px solid var(--window-border-dark);
+  font-size: 14px;
+}
+
+#start-app-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+#start-app-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+#start-app-list li:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+#start-app-list img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Login screen overlay */
+#login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--desktop-bg);
+  /* Use flex to center the login container */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+/* Container for login content (profiles list and forms) */
+#login-screen .login-container {
+  background: var(--window-bg);
+  border: 2px solid var(--window-border-dark);
+  box-shadow: 0 0 0 1px var(--window-border-light) inset,
+              0 0 0 2px var(--window-border-dark) inset;
+  padding: 16px;
+  min-width: 320px;
+}
+
+/* Profile bubbles on the login screen */
+#login-screen .profiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+#login-screen .profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  overflow: hidden;
+  position: relative;
+}
+
+#login-screen .profile img {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+}
+
+#login-screen .profile span {
+  font-size: 12px;
+  color: var(--icon-text);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Login form for creating or entering password */
+#login-screen form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#login-screen input[type="text"],
+#login-screen input[type="password"] {
+  padding: 4px;
+  font-size: 14px;
+  border: 1px solid var(--window-border-dark);
+  background: var(--button-bg);
+  color: var(--icon-text);
+}
+
+#login-screen button {
+  padding: 4px 8px;
+  font-size: 14px;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
+
+/* Spotlight overlay */
+#spotlight-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 20vh;
+  z-index: 2500;
+}
+
+#spotlight-overlay .search-box {
+  width: 80%;
+  max-width: 600px;
+  background: var(--window-bg);
+  border: 2px solid var(--window-border-dark);
+  box-shadow: 0 0 0 1px var(--window-border-light) inset,
+              0 0 0 2px var(--window-border-dark) inset;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+#spotlight-overlay input[type="text"] {
+  width: 100%;
+  padding: 6px;
+  font-size: 16px;
+  border: 1px solid var(--window-border-dark);
+  background: var(--button-bg);
+  color: var(--icon-text);
+  margin-bottom: 8px;
+}
+
+#spotlight-overlay ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#spotlight-overlay li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#spotlight-overlay li:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+#spotlight-overlay li img {
+  width: 20px;
+  height: 20px;
+}
+
+/* Context menu */
+#context-menu {
+  position: absolute;
+  background: var(--window-bg);
+  border: 2px solid var(--window-border-dark);
+  box-shadow: 0 0 0 1px var(--window-border-light) inset,
+              0 0 0 2px var(--window-border-dark) inset;
+  padding: 4px 0;
+  list-style: none;
+  margin: 0;
+  min-width: 160px;
+  z-index: 2000;
+  display: none;
+}
+
+#context-menu li {
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#context-menu li:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+/* Notepad specific styles */
+.notepad-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.notepad-toolbar button {
+  padding: 2px 6px;
+  font-size: 12px;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
+
+/* Notepad editor area – CodeMirror will override height */
+/* The Notepad editor area sits below a fixed toolbar.  Adjust the heights
+   here if you change the toolbar’s height in the HTML. */
+.notepad-editor {
+  width: 100%;
+  height: calc(100% - 32px);
+}
+
+/* Ensure CodeMirror fills the notepad window */
+.CodeMirror {
+  height: calc(100% - 32px);
+}
+
+/* Notepad menu bar */
+.notepad-menu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  background: var(--taskbar-bg);
+  border-bottom: 2px solid var(--taskbar-border-dark);
+}
+.notepad-menu button {
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
+.notepad-menu button.active {
+  background: var(--selection-bg);
+  color: var(--window-bg);
+}
+
+/* Terminal styles */
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #000000;
+  color: #00ff00;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.terminal-output {
+  flex: 1;
+  padding: 4px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.terminal-input {
+  padding: 4px;
+  border: none;
+  outline: none;
+  background: #001000;
+  color: #00ff00;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.terminal-input::placeholder {
+  color: #008000;
+}
+
+/* File manager styles */
+.file-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.file-manager-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.file-manager-toolbar button {
+  padding: 2px 6px;
+  font-size: 12px;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
+
+.file-manager-content {
+  flex: 1;
+  overflow-y: auto;
+  border-top: 1px solid var(--window-border-dark);
+  padding: 4px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.file-item:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+.file-item img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Settings styles */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 14px;
+}
+
+.settings-section {
+  margin-bottom: 12px;
+}
+
+.settings-section h3 {
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+.settings-section label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.settings-section select,
+.settings-section input[type="color"] {
+  width: 100%;
+  padding: 4px;
+  font-size: 14px;
+  border: 1px solid var(--window-border-dark);
+  background: var(--button-bg);
+  color: var(--icon-text);
+}
+
+.settings-section button {
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  cursor: pointer;
+}
