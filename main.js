@@ -137,10 +137,10 @@ const applications = [
     launch: openSheets,
   },
   {
-    id: "crypto-portfolio",
+    id: "crypto",
     name: "Crypto Portfolio",
-    icon: "./icons/logs.png",
-    launch: openCryptoPortfolio,
+    icon: "./icons/processes.png",
+    launch: openCrypto,
   },
 ];
 
@@ -3853,34 +3853,38 @@ function openChat() {
 // ------------------------------------------------------------
 // Application: Crypto Portfolio
 // ------------------------------------------------------------
-function openCryptoPortfolio() {
+function openCrypto() {
   addLog("Crypto Portfolio opened");
   const container = document.createElement("div");
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.height = "100%";
-  const top = document.createElement("div");
-  top.style.display = "flex";
-  top.style.gap = "4px";
-  const input = document.createElement("input");
-  input.placeholder = "e.g. bitcoin";
-  const addBtn = document.createElement("button");
-  addBtn.textContent = "Add";
-  const refreshBtn = document.createElement("button");
-  refreshBtn.textContent = "Refresh";
-  top.append(input, addBtn, refreshBtn);
+
   const totalDiv = document.createElement("div");
   totalDiv.textContent = "Total: $0";
-  totalDiv.style.margin = "4px 0";
+  totalDiv.style.margin = "4px";
+
   const list = document.createElement("div");
   list.style.flex = "1";
   list.style.overflowY = "auto";
-  container.append(top, totalDiv, list);
-  windowManager.createWindow("crypto-portfolio", "Crypto Portfolio", container);
-  const coins =
-    currentUser && Array.isArray(currentUser.cryptoCoins)
-      ? [...currentUser.cryptoCoins]
+
+  const btnBar = document.createElement("div");
+  btnBar.style.display = "flex";
+  btnBar.style.gap = "4px";
+  const addBtn = document.createElement("button");
+  addBtn.textContent = "Add coin";
+  const refreshBtn = document.createElement("button");
+  refreshBtn.textContent = "Refresh prices";
+  btnBar.append(addBtn, refreshBtn);
+
+  container.append(totalDiv, list, btnBar);
+  windowManager.createWindow("crypto", "Crypto Portfolio", container);
+
+  const portfolio =
+    currentUser && Array.isArray(currentUser.portfolio)
+      ? [...currentUser.portfolio]
       : [];
+
   async function fetchPrices(ids) {
     if (!ids.length) return {};
     const resp = await fetch(
@@ -3888,20 +3892,23 @@ function openCryptoPortfolio() {
     );
     return await resp.json();
   }
+
   async function refresh() {
     list.innerHTML = "";
-    if (!coins.length) {
+    if (!portfolio.length) {
       totalDiv.textContent = "Total: $0";
       return;
     }
     try {
-      const prices = await fetchPrices(coins);
+      const ids = portfolio.map((c) => c.id);
+      const prices = await fetchPrices(ids);
       let total = 0;
-      coins.forEach((id) => {
+      portfolio.forEach(({ id, amount }) => {
         const price = prices[id] ? prices[id].usd : 0;
-        total += price;
+        const value = price * amount;
+        total += value;
         const row = document.createElement("div");
-        row.textContent = `${id}: $${price}`;
+        row.textContent = `${id}: ${amount} = $${value.toFixed(2)}`;
         list.append(row);
       });
       totalDiv.textContent = "Total: $" + total.toFixed(2);
@@ -3909,17 +3916,24 @@ function openCryptoPortfolio() {
       totalDiv.textContent = "Failed to fetch prices";
     }
   }
+
   addBtn.addEventListener("click", () => {
-    const sym = input.value.trim().toLowerCase();
-    if (!sym) return;
-    if (!coins.includes(sym)) coins.push(sym);
-    input.value = "";
+    const id = prompt("Coin ID (e.g. bitcoin):");
+    if (!id) return;
+    const amtStr = prompt("Amount:");
+    const amount = parseFloat(amtStr);
+    if (!amtStr || isNaN(amount)) return;
+    const sym = id.trim().toLowerCase();
+    const existing = portfolio.find((c) => c.id === sym);
+    if (existing) existing.amount += amount;
+    else portfolio.push({ id: sym, amount });
     if (currentUser) {
-      currentUser.cryptoCoins = coins;
+      currentUser.portfolio = portfolio;
       saveProfiles(profiles);
     }
     refresh();
   });
+
   refreshBtn.addEventListener("click", refresh);
   refresh();
 }
