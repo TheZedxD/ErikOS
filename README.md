@@ -47,61 +47,23 @@ The desktop uses the [File System Access API](https://developer.chrome.com/docs/
 
 ## Installation
 
+### Prerequisites
+
+* [Python 3](https://www.python.org/) with the `venv` module and `pip`.
+
 ### Windows
 
 1. Download the release ZIP archive and extract its contents into a folder of your choice, e.g. `C:\\Win95Desktop`.
-2. Open a terminal (PowerShell or Command Prompt) and navigate into the extracted folder.
-3. Start a local server.  Serving the files over `http://localhost` is necessary for the File System Access API to work – opening the HTML file directly via `file://` disables many features【889520036319150†L185-L193】.
-
-   *To use the Flask backend (recommended):*  Ensure you have Python and the dependencies `flask` and `pillow` installed.  Open a terminal, navigate to the extracted folder and run:
-
-   ```powershell
-   python DRIVE\app.py
-   ```
-
-   This will start the API server on port 8000 and serve the front‑end assets.  All API endpoints (e.g. `/api/status`, `/api/run-script`) will be available.
-
-   *To use the simple static server:*  If you prefer not to install Flask or Pillow, a convenient batch file, `start_server.bat`, is included; double‑click it in Explorer to launch a basic HTTP server:
-
-   ```powershell
-   start_server.bat
-   ```
-
-   Alternatively, open a terminal and run:
-
-   ```powershell
-   python -m http.server 8000
-   ```
-
-4. Open your browser (Chrome or Edge) and navigate to `http://localhost:8000/index.html`.  The desktop will load and you can begin using the applications.
+2. (Optional) Double‑click `install.bat` to create a `.venv` and install Flask, Pillow and psutil.
+3. Launch the backend with `start_server.bat`.  The script activates the virtual environment if it exists and starts the app on port 8000.
+4. Open your browser (Chrome or Edge) and navigate to `http://localhost:8000/index.html` to use the desktop.
 
 ### Linux
 
 1. Download and extract the ZIP archive into a directory, for example `~/win95-desktop`.
-2. Open a terminal and change into that directory.
-3. Start a local server.  Serving the files over `http://localhost` is necessary for the File System Access API to work – opening the HTML file directly via `file://` disables many features【889520036319150†L185-L193】.
-
-   *To use the Flask backend (recommended):*  Ensure Python, Flask and Pillow are installed.  Run the backend with:
-
-   ```bash
-   python DRIVE/app.py
-   ```
-
-   This starts the API server on port 8000 and also serves the static assets.
-
-   *To use the simple static server:*  A helper script, `start_server.sh`, is provided to launch Python’s built‑in HTTP server:
-
-   ```bash
-   ./start_server.sh
-   ```
-
-   You can also manually run:
-
-   ```bash
-   python3 -m http.server 8000
-   ```
-
-4. Open a Chromium‑based browser and visit `http://localhost:8000/index.html` to use the desktop environment.
+2. (Optional) Run `./install.sh` to create a `.venv` and install Flask, Pillow and psutil.
+3. Start the server with `./start_server.sh`, which activates the virtual environment if present and launches the app on port 8000.
+4. Open a Chromium‑based browser and visit `http://localhost:8000/index.html`.
 
 ### Running directly from the file system
 
