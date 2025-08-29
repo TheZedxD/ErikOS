@@ -140,6 +140,13 @@ const applications = [
     icon: './icons/sheets.png',
     launch: openSheets
   }
+  ,
+  {
+    id: 'crypto-portfolio',
+    name: 'Crypto Portfolio',
+    icon: './icons/logs.png',
+    launch: openCryptoPortfolio
+  }
 ];
 
 /**
@@ -1832,20 +1839,36 @@ function openProcesses() {
   toolbar.classList.add('file-manager-toolbar');
   const refreshBtn = document.createElement('button');
   refreshBtn.textContent = 'Refresh';
-  toolbar.append(refreshBtn);
+  const statsSpan = document.createElement('span');
+  statsSpan.style.marginLeft = '8px';
+  toolbar.append(refreshBtn, statsSpan);
   const content = document.createElement('div');
-  content.classList.add('file-manager-content');
+  content.style.display = 'flex';
+  content.style.gap = '8px';
+  const procPanel = document.createElement('div');
+  procPanel.style.flex = '1';
+  const winPanel = document.createElement('div');
+  winPanel.style.flex = '1';
+  content.append(procPanel, winPanel);
   container.append(toolbar, content);
-  windowManager.createWindow('processes', 'System Processes', container);
+  const winId = windowManager.createWindow('processes', 'System Processes', container);
   async function load() {
-    content.innerHTML = '';
+    procPanel.innerHTML = '<h3>Processes</h3>';
+    winPanel.innerHTML = '<h3>Open Windows</h3>';
+    try {
+      const statsResp = await fetch('/api/system-stats');
+      const stats = await statsResp.json();
+      statsSpan.textContent = `CPU: ${stats.cpu}% | RAM: ${stats.ram}%`;
+    } catch (err) {
+      statsSpan.textContent = 'Stats unavailable';
+    }
     try {
       const resp = await fetch('/api/list-scripts');
       const data = await resp.json();
       if (!Array.isArray(data.processes) || data.processes.length === 0) {
         const p = document.createElement('p');
         p.textContent = 'No running scripts.';
-        content.append(p);
+        procPanel.append(p);
       } else {
         data.processes.forEach(proc => {
           const row = document.createElement('div');
@@ -1855,11 +1878,15 @@ function openProcesses() {
           const stopBtn = document.createElement('button');
           stopBtn.textContent = 'Stop';
           stopBtn.addEventListener('click', async () => {
-            await fetch('/api/stop-script', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pid: proc.pid })
-            });
+            try {
+              await fetch('/api/stop-script', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pid: proc.pid })
+              });
+            } catch (err) {
+              // ignore
+            }
             load();
           });
           stopBtn.style.marginLeft = 'auto';
@@ -1871,17 +1898,32 @@ function openProcesses() {
           stopBtn.style.borderRight = `2px solid var(--btn-border-dark)`;
           stopBtn.style.borderBottom = `2px solid var(--btn-border-dark)`;
           row.append(nameSpan, stopBtn);
-          content.append(row);
+          procPanel.append(row);
         });
       }
     } catch (err) {
       const p = document.createElement('p');
       p.textContent = 'Failed to load processes.';
-      content.append(p);
+      procPanel.append(p);
+    }
+    windowManager.windows.forEach(info => {
+      const row = document.createElement('div');
+      row.classList.add('file-item');
+      const title = info.element.querySelector('.title');
+      row.textContent = title ? title.textContent : 'Unnamed';
+      winPanel.append(row);
+    });
+    if (winPanel.childElementCount === 1) {
+      const p = document.createElement('p');
+      p.textContent = 'No open windows.';
+      winPanel.append(p);
     }
   }
   refreshBtn.addEventListener('click', load);
   load();
+  const interval = setInterval(load, 5000);
+  const closeBtn = windowManager.windows.get(winId).element.querySelector('.controls button:last-child');
+  closeBtn.addEventListener('click', () => clearInterval(interval));
 }
 
 /**
@@ -1889,7 +1931,7 @@ function openProcesses() {
  * Allows the user to change theme and wallpaper.  Selections are stored
  * in localStorage and applied immediately.
  */
-function openSettings() {
+async function openSettings() {
   addLog('Settings opened');
   const container = document.createElement('div');
   container.classList.add('settings-panel');
@@ -1950,6 +1992,11 @@ function openSettings() {
   appearance.append(wallpaperHeading, wallpaperInput, resetWallpaperBtn);
   // Desktop panel
   const desktopPanel = makePanel('Desktop');
+  desktopPanel.style.display = 'flex';
+  desktopPanel.style.flexDirection = 'column';
+  desktopPanel.style.gap = '8px';
+  const iconListResp = await fetch('/api/list-icons').catch(() => null);
+  const availableIcons = iconListResp ? (await iconListResp.json()).icons || [] : [];
   const layoutHeading = document.createElement('h3');
   layoutHeading.textContent = 'Icon Layout';
   const freeRadio = document.createElement('input');
@@ -2009,7 +2056,27 @@ function openSettings() {
     lbl.append(chk, document.createTextNode(' ' + app.name));
     row.append(lbl);
 
-    // Icon picker controls
+    const select = document.createElement('select');
+    const defOpt = document.createElement('option');
+    defOpt.value = app.icon;
+    defOpt.textContent = '(default)';
+    select.append(defOpt);
+    availableIcons.forEach(file => {
+      const opt = document.createElement('option');
+      opt.value = './icons/' + file;
+      opt.textContent = file;
+      select.append(opt);
+    });
+    if (currentUser && currentUser.customIcons && currentUser.customIcons[app.id]) {
+      select.value = currentUser.customIcons[app.id];
+    }
+    select.addEventListener('change', () => {
+      if (!currentUser) return;
+      currentUser.customIcons = currentUser.customIcons || {};
+      currentUser.customIcons[app.id] = select.value;
+      saveProfiles(profiles);
+      initDesktop();
+    });
     const iconBtn = document.createElement('button');
     iconBtn.textContent = 'Icon';
     const resetIconBtn = document.createElement('button');
@@ -2028,6 +2095,7 @@ function openSettings() {
         currentUser.customIcons[app.id] = ev.target.result;
         saveProfiles(profiles);
         initDesktop();
+        select.value = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
@@ -2036,8 +2104,14 @@ function openSettings() {
       delete currentUser.customIcons[app.id];
       saveProfiles(profiles);
       initDesktop();
+      select.value = app.icon;
     });
-    row.append(iconBtn, resetIconBtn, fileInput);
+    row.append(select, iconBtn, resetIconBtn, fileInput);
+
+    const defaultName = app.icon.split('/').pop();
+    if (!availableIcons.includes(defaultName)) {
+      console.warn('Missing icon for app', app.id);
+    }
 
     // Save visibility on change
     chk.addEventListener('change', () => {
@@ -3279,14 +3353,19 @@ function openChat() {
   input.type = 'text';
   input.placeholder = 'Type your message…';
   input.style.flex = '1';
+  const imageInput = document.createElement('input');
+  imageInput.type = 'file';
+  imageInput.accept = 'image/*';
   const sendBtn = document.createElement('button');
   sendBtn.type = 'submit';
   sendBtn.textContent = 'Send';
-  form.append(input, sendBtn);
+  form.append(input, imageInput, sendBtn);
   container.append(toolbar, msgList, form);
   windowManager.createWindow('chat', 'Chat', container);
   // Conversation history for context
-  const conversation = [];
+  const conversation = currentUser && Array.isArray(currentUser.chatHistory)
+    ? [...currentUser.chatHistory]
+    : [];
   // Fetch list of models from the server
   async function fetchModels() {
     try {
@@ -3330,14 +3409,38 @@ function openChat() {
     msgList.append(div);
     msgList.scrollTop = msgList.scrollHeight;
   }
+  conversation.forEach(msg => appendMessage(msg.role, msg.content));
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
   // Handle message submission
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = input.value.trim();
-    if (!msg) return;
-    appendMessage('user', msg);
-    conversation.push({ role: 'user', content: msg });
-    input.value = '';
+    let imageData = null;
+    if (imageInput.files[0]) {
+      try {
+        imageData = await fileToBase64(imageInput.files[0]);
+        imageData = imageData.split(',')[1];
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    if (!msg && !imageData) return;
+    if (msg) {
+      appendMessage('user', msg);
+      conversation.push({ role: 'user', content: msg });
+      if (currentUser) {
+        currentUser.chatHistory = conversation;
+        saveProfiles(profiles);
+      }
+      input.value = '';
+    }
     // Show placeholder while waiting for response
     appendMessage('assistant', '…');
     const placeholder = msgList.lastChild;
@@ -3346,7 +3449,7 @@ function openChat() {
       const res = await fetch('/api/ollama', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: selectedModel, prompt: msg, history: conversation })
+        body: JSON.stringify({ model: selectedModel, prompt: msg, history: conversation, image: imageData })
       });
       const data = await res.json();
       placeholder.remove();
@@ -3356,6 +3459,10 @@ function openChat() {
         const respText = data.response || '';
         appendMessage('assistant', respText);
         conversation.push({ role: 'assistant', content: respText });
+        if (currentUser) {
+          currentUser.chatHistory = conversation;
+          saveProfiles(profiles);
+        }
       }
     } catch (err) {
       placeholder.remove();
@@ -3363,7 +3470,79 @@ function openChat() {
     } finally {
       fetchModels();
     }
+    imageInput.value = '';
   });
+}
+
+// ------------------------------------------------------------
+// Application: Crypto Portfolio
+// ------------------------------------------------------------
+function openCryptoPortfolio() {
+  addLog('Crypto Portfolio opened');
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.height = '100%';
+  const top = document.createElement('div');
+  top.style.display = 'flex';
+  top.style.gap = '4px';
+  const input = document.createElement('input');
+  input.placeholder = 'e.g. bitcoin';
+  const addBtn = document.createElement('button');
+  addBtn.textContent = 'Add';
+  const refreshBtn = document.createElement('button');
+  refreshBtn.textContent = 'Refresh';
+  top.append(input, addBtn, refreshBtn);
+  const totalDiv = document.createElement('div');
+  totalDiv.textContent = 'Total: $0';
+  totalDiv.style.margin = '4px 0';
+  const list = document.createElement('div');
+  list.style.flex = '1';
+  list.style.overflowY = 'auto';
+  container.append(top, totalDiv, list);
+  windowManager.createWindow('crypto-portfolio', 'Crypto Portfolio', container);
+  const coins = currentUser && Array.isArray(currentUser.cryptoCoins)
+    ? [...currentUser.cryptoCoins]
+    : [];
+  async function fetchPrices(ids) {
+    if (!ids.length) return {};
+    const resp = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`);
+    return await resp.json();
+  }
+  async function refresh() {
+    list.innerHTML = '';
+    if (!coins.length) {
+      totalDiv.textContent = 'Total: $0';
+      return;
+    }
+    try {
+      const prices = await fetchPrices(coins);
+      let total = 0;
+      coins.forEach(id => {
+        const price = prices[id] ? prices[id].usd : 0;
+        total += price;
+        const row = document.createElement('div');
+        row.textContent = `${id}: $${price}`;
+        list.append(row);
+      });
+      totalDiv.textContent = 'Total: $' + total.toFixed(2);
+    } catch (err) {
+      totalDiv.textContent = 'Failed to fetch prices';
+    }
+  }
+  addBtn.addEventListener('click', () => {
+    const sym = input.value.trim().toLowerCase();
+    if (!sym) return;
+    if (!coins.includes(sym)) coins.push(sym);
+    input.value = '';
+    if (currentUser) {
+      currentUser.cryptoCoins = coins;
+      saveProfiles(profiles);
+    }
+    refresh();
+  });
+  refreshBtn.addEventListener('click', refresh);
+  refresh();
 }
 
 /**

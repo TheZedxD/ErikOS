@@ -20,8 +20,11 @@ import json
 import os
 import sys
 import subprocess
+import base64
+import tempfile
 from pathlib import Path
 
+import psutil
 from flask import Flask, jsonify, request, send_from_directory
 
 # Determine the base directory where static files live.  The static
@@ -127,14 +130,28 @@ def run_ollama():
     data = request.get_json(silent=True) or {}
     model = data.get("model") or "llama2"
     prompt = data.get("prompt") or ""
-    if not prompt:
+    image_b64 = data.get("image")
+    image_file: str | None = None
+    if not prompt and not image_b64:
         return jsonify({"error": "prompt is required"}), 400
+    if image_b64:
+        try:
+            raw = base64.b64decode(image_b64)
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            tmp.write(raw)
+            tmp.close()
+            image_file = tmp.name
+        except Exception as exc:
+            return jsonify({"error": f"invalid image: {exc}"}), 400
     models, err = detect_ollama_models()
     if model not in models:
         return jsonify({"error": f"model '{model}' is not installed"}), 400
     try:
+        cmd = ["ollama", "run", model, prompt]
+        if image_file:
+            cmd.extend(["--image", image_file])
         result = subprocess.run(
-            ["ollama", "run", model, prompt],
+            cmd,
             capture_output=True,
             text=True,
             timeout=60,
@@ -149,6 +166,9 @@ def run_ollama():
     except Exception as exc:
         app.logger.exception("Error running ollama model")
         return jsonify({"error": str(exc)}), 500
+    finally:
+        if image_file and os.path.exists(image_file):
+            os.unlink(image_file)
 
 
 @app.route("/")
@@ -196,6 +216,27 @@ def process_icons_endpoint():
         return jsonify({"success": True, "output": result.stdout.strip()})
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/system-stats")
+def system_stats():
+    """Return current CPU and RAM utilisation as percentages."""
+    try:
+        cpu = psutil.cpu_percent()
+        ram = psutil.virtual_memory().percent
+        return jsonify({"cpu": cpu, "ram": ram})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/list-icons")
+def list_icons():
+    """Return a list of available PNG icon filenames."""
+    icon_dir = BASE_DIR / "icons"
+    files = [
+        f.name for f in icon_dir.iterdir() if f.is_file() and f.suffix.lower() == ".png"
+    ]
+    return jsonify({"icons": files})
 
 
 # ---------------------------------------------------------------------------
