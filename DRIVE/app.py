@@ -46,6 +46,30 @@ processes: dict[int, subprocess.Popen] = {}
 # Windows you may wish to permit "dir" instead of "ls".
 ALLOWED_COMMANDS = {"ls", "dir", "echo", "ping"}
 
+# Directory where chat histories are stored.  A JSON file is created for
+# each profile under this folder.
+CHAT_HISTORY_DIR = BASE_DIR / "chat_history"
+CHAT_HISTORY_DIR.mkdir(exist_ok=True)
+
+
+def _safe_profile_name(name: str) -> str:
+    """Return a filesystem‑safe version of a profile name."""
+    return "".join(c for c in name if c.isalnum() or c in {"-", "_"}) or "default"
+
+
+def load_chat_history(profile: str) -> list[dict]:
+    """Load chat history for ``profile`` from disk."""
+    path = CHAT_HISTORY_DIR / f"{profile}.json"
+    if path.exists():
+        try:
+            with path.open("r", encoding="utf-8") as fh:
+                data = json.load(fh)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            app.logger.exception("Failed reading chat history for %s", profile)
+    return []
+
 
 def _scan_model_dirs() -> list[str]:
     """Return model names by scanning known model directories."""
@@ -119,19 +143,30 @@ def list_ollama_models():
     return jsonify(resp)
 
 
+@app.route("/api/ollama/history/<profile>")
+def get_chat_history(profile: str):
+    """Return stored chat history for the given profile."""
+    profile = _safe_profile_name(profile)
+    history = load_chat_history(profile)
+    return jsonify({"history": history})
+
+
 @app.route("/api/ollama", methods=["POST"])
+@app.route("/api/ollama/chat", methods=["POST"])
 def run_ollama():
     """Run a prompt against the specified model via the `ollama run` CLI.
 
-    Expects a JSON body with `model` and `prompt` keys.  Optionally
-    includes a `history` array (list of messages) which is not used
-    directly but maintained by the client.  The response contains
-    either a `response` field with the model output or an `error`.
+    Expects JSON with `model`, `prompt` and optional `image` (base64).  The
+    request may also include `history` (list of messages) and `profile` to
+    persist conversation history to disk.  The response contains either a
+    `response` field with the model output or an `error`.
     """
     data = request.get_json(silent=True) or {}
     model = data.get("model") or "llama2"
     prompt = data.get("prompt") or ""
     image_b64 = data.get("image")
+    history = data.get("history") or []
+    profile = data.get("profile")
     image_file: str | None = None
     if not prompt and not image_b64:
         return jsonify({"ok": False, "error": "prompt is required"}), 400
@@ -160,7 +195,18 @@ def run_ollama():
         if result.returncode != 0:
             app.logger.error("ollama run failed: %s", result.stderr.strip())
             return jsonify({"ok": False, "error": result.stderr.strip()}), 500
-        return jsonify({"response": result.stdout.strip()})
+        response_text = result.stdout.strip()
+        convo = list(history) if isinstance(history, list) else []
+        convo.append({"role": "assistant", "content": response_text})
+        if profile:
+            try:
+                prof = _safe_profile_name(profile)
+                path = CHAT_HISTORY_DIR / f"{prof}.json"
+                with path.open("w", encoding="utf-8") as fh:
+                    json.dump(convo, fh)
+            except Exception:
+                app.logger.exception("Failed writing chat history for %s", profile)
+        return jsonify({"response": response_text})
     except FileNotFoundError:
         app.logger.exception("ollama executable not found while running model")
         return jsonify({"ok": False, "error": "ollama executable not found"}), 500
