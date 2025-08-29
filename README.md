@@ -1,93 +1,70 @@
-# Win95‑Style Browser Desktop
+# Win95-Style Browser Desktop
 
 ## Overview
-
-This project implements a Windows‑95 inspired desktop environment that runs entirely in your browser.  Using only standard Web APIs and a few small libraries, it recreates a classic desktop complete with draggable windows, a taskbar, a start menu, right‑click context menus and a selection of built‑in applications.  A lightweight Flask backend (provided under the `DRIVE/` directory) can optionally be run to enable file‑system operations, icon processing, background script management and shell command execution.  The desktop works without the backend, but some advanced features (such as the terminal’s remote commands and the system process viewer) require it.
+A Windows 95 inspired desktop environment that runs entirely in the browser. A lightweight Flask backend enables file access, terminal commands and other utilities.
 
 ## Features
-
-* **Desktop and icons** – A classic desktop surface featuring icons for a wide range of built‑in applications including Notepad, File Manager, Terminal, Settings, Media Player, Clock, Calendar, World Clocks, Calculator, Paint, Gallery, Temperature Converter, Sound Recorder, Volume Control, Logs, Profile Manager, Chat and Sheets.  New applications can be added easily by editing the `applications` array in `main.js`.
-  You can switch between **free‑form** and **snap‑to‑grid** icon layout modes via the desktop’s right‑click menu.  In free‑form mode you can drag icons anywhere on the desktop and their positions persist across sessions; in grid mode icons snap to a neat padded grid.  Each profile can choose which application icons appear on its desktop from the Settings→Desktop tab, allowing you to hide rarely used icons while keeping them accessible via the Start menu and Spotlight.
-* **Start menu with search** – A spotlight‑style launcher opens when you click the Start button.  Type to filter available applications and press Enter or click to launch.  All installed applications, including your custom links and the new tools described below, appear here.
-* **Profiles and login** – Multiple users can be created from the login screen.  Each profile stores its own theme, wallpaper, custom links and security preferences.  If no profiles exist, you are prompted to create a master user when the app starts.  Your chosen settings persist in the browser’s local storage, which MDN notes is saved across sessions and has no expiration time【960474158399754†L185-L193】.
-* **Spotlight overlay** – Press `Ctrl + Space` at any time to open a global search overlay.  The overlay lists all installed applications and any custom links you have created.  Type to filter results and press Enter or click to open them.  This feature complements the Start menu and provides a quick way to launch apps without using the mouse.
-* **Link Editor** – A hierarchical tree‑view editor for organising custom shortcuts.  You can create folders, add links inside any folder, drag and drop items to reorder them and delete entries.  Links are stored on your profile and appear in the Spotlight overlay.
-* **Context menus** – Right‑click anywhere on the desktop, on an icon, on a window or on a taskbar button to access relevant actions such as Open, Rename, Minimise or Close.  A placeholder “Ask AI…” item hints at future integration with multimodal models.
-* **Notepad** – A fully featured text editor powered by CodeMirror 5.  In addition to syntax highlighting and line numbers, the revamped Notepad includes a toolbar with buttons for **New**, **Open**, **Save**, **Save As**, **Undo**, **Redo** and **Word Wrap**.  Word wrap can be toggled on or off, and undo/redo operations are performed through CodeMirror’s history API.  Files are opened and saved using the File System Access API when available, falling back to a download when necessary.  The editor automatically resizes with its window and smart indentation is enabled.
-* **File Manager** – A two‑pane browser with a directory tree on the left and file details on the right.  Includes search, and supports opening files, creating folders, renaming, deleting and uploading items via Flask endpoints such as `/api/list-directory`.  Text and image files open in the appropriate applications, and CSV/XLSX files can be sent to the Sheets app for import or export.
-* **Terminal** – A lightweight terminal interface.  A few built‑in commands (`help`, `clear`, `theme` and `about`) are provided locally.  Any other command is sent to the Flask backend’s `/api/execute-command` endpoint and executed on the host system, subject to a whitelist of safe commands (e.g. `ls`, `dir`, `echo`, `ping`).  The output is streamed back and displayed in the terminal.
-* **System Processes** – Monitor and control background scripts started via the API.  The System Processes application fetches a list of running scripts from `/api/list-scripts` and allows you to terminate them via `/api/stop-script`.
-* **Settings** – Change the desktop theme (classic, matrix, high contrast, red, pink, Solarized or Vaporwave) and choose a custom wallpaper.  A live preview shows each theme as you hover over it.  Preferences persist across sessions using `localStorage`.  The settings application groups options into **Appearance**, **Desktop**, **Security**, **Audio** and **Advanced** tabs.  In addition to themes and wallpapers, you can now:
-
-    - Choose between free‑form or snap‑to‑grid icon layouts, decide which applications appear on the desktop, pick custom icons for each app and toggle the taskbar clock, volume icon and quick‑links tray.
-    - Manage passwords and the login screen background from the **Security** tab.
-    - Adjust the global volume via a dedicated slider in the **Audio** tab.
-    - An **Advanced** tab is reserved for future options.
-
-  Login backgrounds and wallpapers are stored as data URLs in the browser and do not leave your machine.
-* **Media Player** – Play local audio and video files.  Supports multiple formats via the File System Access API or a file input fallback.  Media elements integrate with the global volume control.
-* **Clock and Calendar** – A simple digital clock window shows the current time and date, while a full calendar lets you browse months and highlights the current day.
-* **World Clocks** – Add clocks for multiple time zones using IANA zone names (e.g. America/New_York).  Times update every second and persist across sessions.
-* **Calculator** – A basic calculator supporting the four arithmetic operations, decimal numbers and a clear key.
-* **Paint** – Draw freehand on a canvas, choose colours, change brush size, clear your artwork or save it as a PNG.  The Paint application has been upgraded with a toolbar that includes a brush and an eraser, adjustable brush sizes, a colour picker and the ability to insert images onto the canvas.  Coordinates have been corrected so drawing follows the cursor precisely.
-
-* **Sheets** – A lightweight spreadsheet application supporting multiple worksheets per workbook.  Tabs above the grid let you add, rename, delete and reorder sheets.  Import or export data as CSV, ZIP of CSVs or XLSX (via SheetJS) using the **Open** and **Save** buttons.  Workbooks are stored on your profile so your sheets persist across sessions.  The CSV parser preserves quoted fields and column counts, and you can add rows or columns and edit cell values directly.
-* **Gallery** – Select images from your computer to view as thumbnails; click any thumbnail to open a larger viewer.
-* **Temperature Converter** – Convert between Celsius, Fahrenheit and Kelvin with immediate results.
-* **Sound Recorder** – Capture audio from your microphone using the MediaRecorder API.  Recordings can be played back and downloaded.
-* **Volume Control** – Adjust a global volume slider that applies to all media elements across applications.
-* **Logs** – A lightweight logging system records key events like application launches and profile changes.  View and clear logs by date in the Logs application.
-* **Chat** – A simple chat interface allows you to interact with local language models via the Flask backend’s `/api/ollama` endpoint.  Select from installed models, type a message and view the model’s response.  Conversation history is maintained client‑side.
-* **Profile Manager** – Manage existing profiles, rename or delete them, switch between users and log out from within the desktop.
-* **Window management** – Windows are draggable, resizable, minimisable and closable.  Each open window creates a button on the taskbar; clicking toggles minimise/restore and brings the window to the front.  A small clock in the bottom‑right corner of the taskbar shows the current time.
-
-## Browser requirements
-
-The desktop uses the [File System Access API](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access) to provide a native‑like file browsing and editing experience.  At the time of writing this API is only supported in Chromium‑based browsers (Chrome, Edge and compatible)【670670972276501†L104-L110】.  The application therefore detects support and falls back to traditional file inputs and downloads when necessary.  Safari and Firefox users can still explore the desktop and use the terminal and settings, but will not be able to browse directories or save files directly【670670972276501†L104-L110】.  When permission is granted, access to a file or directory lasts only while the page remains open and the user is always prompted through the browser’s picker dialogs【670670972276501†L139-L146】.
+- **Desktop** with icons, start menu and taskbar
+- **Notepad** text editor
+- **File Manager** for browsing and manipulating files
+- **Terminal** executing a whitelist of safe commands
+- **System Monitor** for background scripts
+- **Crypto Portfolio** tracker
+- **Chat** interface for local Ollama models
+- **Paint** canvas
+- **Sheets** spreadsheet
+- **Gallery** image viewer
+- **Clocks & Calendar** including world clocks
+- **Temperature Converter**
+- **Sound Recorder**
+- **Volume** control
+- **Logs** viewer
+- **Profile Manager** for multiple users
+- **Diagnostics** self-check tool
 
 ## Installation
 
-### Prerequisites
+### Install scripts
+Run `install.sh` (Linux) or `install.bat` (Windows) to create a virtual environment and install Python dependencies:
 
-* [Python 3](https://www.python.org/) with the `venv` module and `pip`.
+```
+Flask
+Pillow
+psutil
+```
+
+### Starting the server
+Use `start_server.sh` or `start_server.bat` to launch the backend on port 8000.
+
+```
+./start_server.sh
+# or
+start_server.bat
+```
+
+## Usage
 
 ### Windows
-
-1. Download the release ZIP archive and extract its contents into a folder of your choice, e.g. `C:\\Win95Desktop`.
-2. (Optional) Double‑click `install.bat` to create a `.venv` and install Flask, Pillow and psutil.
-3. Launch the backend with `start_server.bat`.  The script activates the virtual environment if it exists and starts the app on port 8000.
-4. Open your browser (Chrome or Edge) and navigate to `http://localhost:8000/index.html` to use the desktop.
+1. Run `start_server.bat`.
+2. Open `http://localhost:8000/index.html` in Chrome or Edge.
 
 ### Linux
+1. `./start_server.sh`
+2. Open `http://localhost:8000/index.html` in a Chromium browser.
 
-1. Download and extract the ZIP archive into a directory, for example `~/win95-desktop`.
-2. (Optional) Run `./install.sh` to create a `.venv` and install Flask, Pillow and psutil.
-3. Start the server with `./start_server.sh`, which activates the virtual environment if present and launches the app on port 8000.
-4. Open a Chromium‑based browser and visit `http://localhost:8000/index.html`.
+## Customization
+- Switch themes and wallpapers in **Settings**.
+- Use the **Icon Manager** to show/hide desktop icons or change their graphics.
 
-### Running directly from the file system
+## Troubleshooting
+- **Ollama not found**: install the `ollama` CLI and make sure it is on your `PATH`.
+- **Permission denied** when accessing files: ensure the server has rights to the path and grant access when the browser prompts.
 
-Opening `index.html` directly via the `file://` protocol is possible, but file operations (opening directories and saving to arbitrary locations) will not work because the File System Access API is disabled outside of a secure or `localhost` origin.  MDN notes that `showDirectoryPicker()` is an experimental method available only in secure contexts【889520036319150†L185-L193】, so serving the files via `http://localhost` is essential.  Running a local web server as described above is therefore strongly recommended.
+## Security
+The backend only executes whitelisted terminal commands and protects file APIs against path traversal.
 
-## Customisation
-
-* **Themes** – Launch the Settings application and choose a theme.  When you are logged in, the theme is saved on your profile; otherwise it is stored in the browser’s local storage.  You can also change themes from the Terminal using the `theme` command (e.g. `theme matrix`).
-* **Wallpaper** – In Settings, pick an image file to use as your desktop wallpaper.  Each user may have their own wallpaper, stored as a data URL on their profile.  Use the “Reset Wallpaper” button to return to the default wallpaper.
-* **Login background** – For an extra personal touch, choose an image for the login screen background.  This setting is global to the installation and can be reset at any time.
-* **Custom links** – Open the Link Editor to create or delete shortcuts to external websites or resources.  Links live on your profile, can be organised into folders and appear in the Spotlight overlay when you search.
-* **Adding applications** – To add new applications, edit the `applications` array near the top of `main.js`.  Provide a unique `id`, a `name`, an icon (place the PNG in `icons/` and reference it) and a `launch` function that creates the application window.
-
-## Limitations
-
-* When using the Flask backend, the terminal can execute only a restricted set of shell commands defined on the server.  Without the backend, the terminal falls back to the built‑in commands described above.
-* Directory browsing and persistent file editing rely on the File System Access API and therefore require a Chromium‑based browser【670670972276501†L104-L110】.
-* The “Ask AI…” context menu action is a placeholder for a future integration with a multimodal AI model.
-* The Chat application requires the `ollama` CLI to be installed on the host system and accessible on the system `PATH`.  If `ollama` is not installed the Chat application will indicate that no models are available.  On systems where `ollama` is installed, use `ollama list` to see which models are available and ensure they are downloaded before attempting to chat.
-
-## Security considerations
-
-When the File System Access API is used, the browser requires the user to choose files or folders through a picker dialog and grants access only for the selected items【670670972276501†L139-L146】.  Permissions are tied to the current origin and are automatically revoked when all tabs for the origin are closed【670670972276501†L139-L146】.  The application does not send any data to remote servers; all processing (including text editing and theme changes) happens locally in your browser.
+## Diagnostics
+Launch the *Diagnostics* app to verify repository health. Results are written to `logs/diagnostics.log`.
 
 ---
-
 Enjoy your nostalgic browsing experience!
