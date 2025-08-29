@@ -3712,11 +3712,7 @@ function openChat() {
   form.append(input, imageInput, sendBtn);
   container.append(toolbar, msgList, form);
   windowManager.createWindow("chat", "Chat", container);
-  // Conversation history for context
-  const conversation =
-    currentUser && Array.isArray(currentUser.chatHistory)
-      ? [...currentUser.chatHistory]
-      : [];
+  let conversation = [];
   // Fetch list of models from the server
   async function fetchModels() {
     try {
@@ -3764,7 +3760,26 @@ function openChat() {
     msgList.append(div);
     msgList.scrollTop = msgList.scrollHeight;
   }
-  conversation.forEach((msg) => appendMessage(msg.role, msg.content));
+  async function loadConversation() {
+    if (currentUser) {
+      conversation = Array.isArray(currentUser.chatHistory)
+        ? [...currentUser.chatHistory]
+        : [];
+      try {
+        const res = await fetch(
+          `/api/ollama/history/${encodeURIComponent(currentUser.name)}`
+        );
+        const data = await res.json();
+        if (Array.isArray(data.history) && data.history.length) {
+          conversation = data.history;
+          currentUser.chatHistory = conversation;
+          saveProfiles(profiles);
+        }
+      } catch (err) {}
+    }
+    conversation.forEach((msg) => appendMessage(msg.role, msg.content));
+  }
+  loadConversation();
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -3801,7 +3816,7 @@ function openChat() {
     const placeholder = msgList.lastChild;
     const selectedModel = modelSelect.value || "llama2";
     try {
-      const res = await fetch("/api/ollama", {
+      const res = await fetch("/api/ollama/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3809,6 +3824,7 @@ function openChat() {
           prompt: msg,
           history: conversation,
           image: imageData,
+          profile: currentUser ? currentUser.name : null,
         }),
       });
       const data = await res.json();
