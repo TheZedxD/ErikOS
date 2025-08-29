@@ -263,8 +263,9 @@ def upload_icon():
 # Base directory that the file manager is allowed to access.  Paths provided
 # by the client are interpreted relative to this directory.  The resolved path
 # is always checked to ensure it does not escape this directory to mitigate
-# directory traversal attacks.
-FILE_BASE = BASE_DIR
+# directory traversal attacks.  The base directory can be overridden with the
+# FILE_BASE environment variable for flexibility.
+FILE_BASE = Path(os.environ.get("FILE_BASE", BASE_DIR)).resolve()
 
 
 def _safe_path(rel_path: str) -> Path:

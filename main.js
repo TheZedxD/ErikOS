@@ -1312,6 +1312,18 @@ function initContextMenu() {
         action: () => windowManager.closeWindow(id),
       });
     }
+    // File manager context
+    else if (target.closest(".file-manager")) {
+      const ctx = window.fileManagerContext;
+      if (ctx) {
+        items.push({ label: "New Folder", action: ctx.newFolder });
+        items.push({ label: "Upload", action: ctx.uploadFile });
+        if (ctx.hasSelection()) {
+          items.push({ label: "Rename", action: ctx.renameItem });
+          items.push({ label: "Delete", action: ctx.deleteItem });
+        }
+      }
+    }
     // Desktop context
     else {
       items.push({
@@ -1692,6 +1704,68 @@ function openFileManager() {
   let currentItems = [];
   let selected = null;
 
+  async function newFolder() {
+    const name = prompt("Folder name");
+    if (!name) return;
+    const result = await apiJSON("/api/create-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: currentPath, name }),
+    });
+    if (!result.ok) alert(result.error);
+    loadDirectory(currentPath);
+  }
+
+  async function renameItem() {
+    if (!selected) return alert("Select an item first");
+    const newName = prompt("New name", selected.name);
+    if (!newName) return;
+    const result = await apiJSON("/api/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: selected.path, new_name: newName }),
+    });
+    if (!result.ok) alert(result.error);
+    loadDirectory(currentPath);
+  }
+
+  async function deleteItem() {
+    if (!selected) return alert("Select an item first");
+    if (!confirm("Delete " + selected.name + "?")) return;
+    const result = await apiJSON("/api/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: selected.path }),
+    });
+    if (!result.ok) alert(result.error);
+    loadDirectory(currentPath);
+  }
+
+  function uploadFileAction() {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.style.display = "none";
+    inp.addEventListener("change", async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("path", currentPath);
+      fd.append("file", file);
+      const result = await apiJSON("/api/upload", { method: "POST", body: fd });
+      if (!result.ok) alert(result.error);
+      loadDirectory(currentPath);
+    });
+    inp.click();
+  }
+
+  window.fileManagerContext = {
+    newFolder,
+    renameItem,
+    deleteItem,
+    uploadFile: uploadFileAction,
+    hasSelection: () => !!selected,
+  };
+
   async function loadDirectory(path) {
     const resp = await apiJSON(
       `/api/list-directory?path=${encodeURIComponent(path)}`
@@ -1761,6 +1835,13 @@ function openFileManager() {
         row.classList.add("selected");
         selected = item;
       });
+      row.addEventListener("contextmenu", () => {
+        details
+          .querySelectorAll(".file-item.selected")
+          .forEach((el) => el.classList.remove("selected"));
+        row.classList.add("selected");
+        selected = item;
+      });
       row.addEventListener("dblclick", () => openItem(item));
       details.append(row);
     });
@@ -1805,59 +1886,10 @@ function openFileManager() {
   searchInput.addEventListener("input", renderDetails);
   refreshBtn.addEventListener("click", () => loadDirectory(currentPath));
 
-  newFolderBtn.addEventListener("click", async () => {
-    const name = prompt("Folder name");
-    if (!name) return;
-    const result = await apiJSON("/api/create-folder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: currentPath, name }),
-    });
-    if (!result.ok) alert(result.error);
-    loadDirectory(currentPath);
-  });
-
-  renameBtn.addEventListener("click", async () => {
-    if (!selected) return alert("Select an item first");
-    const newName = prompt("New name", selected.name);
-    if (!newName) return;
-    const result = await apiJSON("/api/rename", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: selected.path, new_name: newName }),
-    });
-    if (!result.ok) alert(result.error);
-    loadDirectory(currentPath);
-  });
-
-  deleteBtn.addEventListener("click", async () => {
-    if (!selected) return alert("Select an item first");
-    if (!confirm("Delete " + selected.name + "?")) return;
-    const result = await apiJSON("/api/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: selected.path }),
-    });
-    if (!result.ok) alert(result.error);
-    loadDirectory(currentPath);
-  });
-
-  uploadBtn.addEventListener("click", () => {
-    const inp = document.createElement("input");
-    inp.type = "file";
-    inp.style.display = "none";
-    inp.addEventListener("change", async () => {
-      const file = inp.files[0];
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("path", currentPath);
-      fd.append("file", file);
-      const result = await apiJSON("/api/upload", { method: "POST", body: fd });
-      if (!result.ok) alert(result.error);
-      loadDirectory(currentPath);
-    });
-    inp.click();
-  });
+  newFolderBtn.addEventListener("click", newFolder);
+  renameBtn.addEventListener("click", renameItem);
+  deleteBtn.addEventListener("click", deleteItem);
+  uploadBtn.addEventListener("click", uploadFileAction);
 
   loadDirectory("");
 }
