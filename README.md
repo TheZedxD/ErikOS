@@ -31,7 +31,7 @@ This project implements a Windows‑95 inspired desktop environment that runs en
 * **Calculator** – A basic calculator supporting the four arithmetic operations, decimal numbers and a clear key.
 * **Paint** – Draw freehand on a canvas, choose colours, change brush size, clear your artwork or save it as a PNG.  The Paint application has been upgraded with a toolbar that includes a brush and an eraser, adjustable brush sizes, a colour picker and the ability to insert images onto the canvas.  Coordinates have been corrected so drawing follows the cursor precisely.
 
-* **Sheets** – A lightweight spreadsheet application supporting multiple worksheets per workbook.  Tabs above the grid let you add, rename, delete and reorder sheets.  Import or export data as CSV or XLSX (via SheetJS) using the **Open** and **Save** buttons.  The CSV parser preserves quoted fields and column counts, and you can add rows or columns and edit cell values directly.
+* **Sheets** – A lightweight spreadsheet application supporting multiple worksheets per workbook.  Tabs above the grid let you add, rename, delete and reorder sheets.  Import or export data as CSV, ZIP of CSVs or XLSX (via SheetJS) using the **Open** and **Save** buttons.  Workbooks are stored on your profile so your sheets persist across sessions.  The CSV parser preserves quoted fields and column counts, and you can add rows or columns and edit cell values directly.
 * **Gallery** – Select images from your computer to view as thumbnails; click any thumbnail to open a larger viewer.
 * **Temperature Converter** – Convert between Celsius, Fahrenheit and Kelvin with immediate results.
 * **Sound Recorder** – Capture audio from your microphone using the MediaRecorder API.  Recordings can be played back and downloaded.

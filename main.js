@@ -3976,6 +3976,13 @@ function openSheets(fileData) {
     }
     return { name: name || `Sheet${sheets.length + 1}`, data: initial };
   }
+  // Load from profile if available and no file data provided
+  if (!fileData && currentUser && Array.isArray(currentUser.sheets)) {
+    sheets = currentUser.sheets.map((s) => ({
+      name: s.name,
+      data: s.data.map((row) => row.slice()),
+    }));
+  }
   // Populate from provided file data if any
   if (fileData) {
     try {
@@ -3997,6 +4004,13 @@ function openSheets(fileData) {
   }
   if (sheets.length === 0) sheets.push(createSheet("Sheet1"));
   let currentSheetIndex = 0;
+  function persist() {
+    if (currentUser) {
+      currentUser.sheets = sheets;
+      saveProfiles(profiles);
+    }
+  }
+  persist();
   // Toolbar with actions
   const toolbar = document.createElement("div");
   toolbar.style.display = "flex";
@@ -4053,6 +4067,7 @@ function openSheets(fileData) {
         if (newName) {
           sheet.name = newName;
           renderTabs();
+          persist();
         }
       });
       const close = document.createElement("span");
@@ -4067,6 +4082,7 @@ function openSheets(fileData) {
         if (currentSheetIndex < 0) currentSheetIndex = 0;
         renderTabs();
         renderTable();
+        persist();
       });
       tab.append(btn, close);
       tab.addEventListener("dragstart", (e) => {
@@ -4082,6 +4098,7 @@ function openSheets(fileData) {
         currentSheetIndex = idx;
         renderTabs();
         renderTable();
+        persist();
       });
       tabsBar.append(tab);
     });
@@ -4092,6 +4109,7 @@ function openSheets(fileData) {
   }
   function setCurrentData(newData) {
     sheets[currentSheetIndex].data = newData;
+    persist();
   }
   // Render the table based on current sheet
   function renderTable() {
@@ -4139,6 +4157,7 @@ function openSheets(fileData) {
         input.style.fontSize = "14px";
         input.addEventListener("input", () => {
           data[r][c] = input.value;
+          persist();
         });
         td.append(input);
         tr.append(td);
@@ -4153,17 +4172,20 @@ function openSheets(fileData) {
     const newRow = new Array(cols).fill("");
     data.push(newRow);
     renderTable();
+    persist();
   });
   addColBtn.addEventListener("click", () => {
     const data = currentData();
     data.forEach((row) => row.push(""));
     renderTable();
+    persist();
   });
   addSheetBtn.addEventListener("click", () => {
     sheets.push(createSheet());
     currentSheetIndex = sheets.length - 1;
     renderTabs();
     renderTable();
+    persist();
   });
   // CSV helpers
   function parseCSV(text) {
@@ -4238,6 +4260,7 @@ function openSheets(fileData) {
             data: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1 }),
           }));
           currentSheetIndex = 0;
+          persist();
         } else {
           const text = await file.text();
           setCurrentData(parseCSV(text));
@@ -4264,6 +4287,7 @@ function openSheets(fileData) {
             },
           },
           { description: "CSV", accept: { "text/csv": [".csv"] } },
+          { description: "ZIP", accept: { "application/zip": [".zip"] } },
         ],
         suggestedName: sheets[currentSheetIndex].name,
       };
@@ -4278,22 +4302,45 @@ function openSheets(fileData) {
           });
           const array = XLSX.write(wb, { bookType: "xlsx", type: "array" });
           await writable.write(array);
+        } else if (handle.name.endsWith(".zip") && typeof JSZip !== "undefined") {
+          const zip = new JSZip();
+          sheets.forEach((s) => {
+            zip.file(s.name + ".csv", sheetToCSV(s.data));
+          });
+          const blob = await zip.generateAsync({ type: "blob" });
+          await writable.write(blob);
         } else {
           const csv = sheetToCSV(currentData());
           await writable.write(csv);
         }
         await writable.close();
       } else {
-        const csv = sheetToCSV(currentData());
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = sheets[currentSheetIndex].name + ".csv";
-        document.body.append(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        if (sheets.length > 1 && typeof JSZip !== "undefined") {
+          const zip = new JSZip();
+          sheets.forEach((s) => {
+            zip.file(s.name + ".csv", sheetToCSV(s.data));
+          });
+          const blob = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "workbook.zip";
+          document.body.append(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } else {
+          const csv = sheetToCSV(currentData());
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = sheets[currentSheetIndex].name + ".csv";
+          document.body.append(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
       }
     } catch (err) {
       console.error(err);
