@@ -239,10 +239,21 @@ def system_stats():
 def list_icons():
     """Return a list of available PNG icon filenames."""
     icon_dir = BASE_DIR / "icons"
-    files = [
-        f.name for f in icon_dir.iterdir() if f.is_file() and f.suffix.lower() == ".png"
-    ]
-    return jsonify({"icons": files})
+    files = [f.name for f in icon_dir.glob("*.png")]
+    return jsonify({"ok": True, "icons": files})
+
+
+@app.route("/api/upload-icon", methods=["POST"])
+def upload_icon():
+    """Upload a PNG icon to the icons directory."""
+    file = request.files.get("file")
+    if not file or not file.filename.lower().endswith(".png"):
+        return jsonify({"ok": False, "error": "png only"}), 400
+    icon_dir = BASE_DIR / "icons"
+    icon_dir.mkdir(parents=True, exist_ok=True)
+    dest = icon_dir / file.filename
+    file.save(dest)
+    return jsonify({"ok": True, "file": file.filename})
 
 
 # ---------------------------------------------------------------------------
