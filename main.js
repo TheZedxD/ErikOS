@@ -142,6 +142,13 @@ const applications = [
     icon: "./icons/processes.png",
     launch: openCrypto,
   },
+  {
+    id: "diagnostics",
+    name: "Diagnostics",
+    // Use an existing default icon to avoid adding binary assets
+    icon: "./icons/settings-icon.png",
+    launch: openDiagnostics,
+  },
 ];
 
 /**
@@ -3943,6 +3950,36 @@ function openCrypto() {
 
   refreshBtn.addEventListener("click", refresh);
   refresh();
+}
+
+// ------------------------------------------------------------
+// Application: Diagnostics
+// ------------------------------------------------------------
+function openDiagnostics() {
+  addLog("Diagnostics opened");
+  const container = document.createElement("div");
+  container.style.padding = "8px";
+  container.textContent = "Running diagnostics...";
+  windowManager.createWindow("diagnostics", "Diagnostics", container);
+  fetch("/api/diagnostics/run")
+    .then((r) => r.json())
+    .then((data) => {
+      container.innerHTML = "";
+      if (data.issues && data.issues.length) {
+        const list = document.createElement("ul");
+        data.issues.forEach((iss) => {
+          const li = document.createElement("li");
+          li.textContent = iss;
+          list.append(li);
+        });
+        container.append("Issues detected:", list);
+      } else {
+        container.textContent = "All checks passed";
+      }
+    })
+    .catch((err) => {
+      container.textContent = "Diagnostics failed: " + err;
+    });
 }
 
 /**

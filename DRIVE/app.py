@@ -27,6 +27,8 @@ from pathlib import Path
 import psutil
 from flask import Flask, jsonify, request, send_from_directory
 
+from tools.diagnostics import run_diagnostics
+
 # Determine the base directory where static files live.  The static
 # folder is the parent directory of this script (i.e. project root).
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -527,6 +529,14 @@ def execute_command():
         )
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/diagnostics/run")
+def run_diagnostics_endpoint():
+    """Run diagnostics and return a summary result."""
+    result = run_diagnostics(app)
+    status = 200 if result.get("ok") else 500
+    return jsonify(result), status
 
 
 if __name__ == "__main__":
