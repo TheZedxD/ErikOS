@@ -342,8 +342,8 @@ class WindowManager {
       let newTop = e.clientY - offsetY;
       // Constrain window within the desktop area so it doesn't disappear
       const deskRect = this.desktop.getBoundingClientRect();
-      const maxLeft = deskRect.width - winEl.offsetWidth;
-      const maxTop = deskRect.height - winEl.offsetHeight;
+      const maxLeft = Math.max(0, deskRect.width - winEl.offsetWidth);
+      const maxTop = Math.max(0, deskRect.height - winEl.offsetHeight);
       newLeft = Math.min(Math.max(0, newLeft), maxLeft);
       newTop = Math.min(Math.max(0, newTop), maxTop);
       winEl.style.left = `${newLeft}px`;
@@ -1210,6 +1210,7 @@ function attachIconDrag(icon, app) {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (!moved && Math.hypot(dx, dy) > 5) moved = true;
+    if (!moved) return;
     let newLeft = startLeft + dx;
     let newTop = startTop + dy;
     const desktopRect = document
@@ -1223,13 +1224,11 @@ function attachIconDrag(icon, app) {
     icon.style.left = `${newLeft}px`;
     icon.style.top = `${newTop}px`;
   };
-  const onUp = (e) => {
+  const onUp = () => {
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
     icon.classList.remove("dragging");
-    const dx = Math.abs(e.clientX - startX);
-    const dy = Math.abs(e.clientY - startY);
-    if (dx < 5 && dy < 5) {
+    if (!moved) {
       app.launch();
     } else if (currentUser && currentUser.iconPositions) {
       const x = parseInt(icon.style.left, 10) || 0;
@@ -3157,7 +3156,15 @@ function openPaint() {
   canvas.style.cursor = "crosshair";
   container.append(toolbar, canvas);
   const winId = windowManager.createWindow("paint", "Paint", container);
+  const winEl = windowManager.windows.get(winId).element;
   const ctx = canvas.getContext("2d");
+  function resizeCanvas() {
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height - toolbar.offsetHeight;
+  }
+  resizeCanvas();
+  winEl.addEventListener("resized", () => setTimeout(resizeCanvas, 0));
   ctx.lineCap = "round";
   // Track current drawing mode
   let mode = "brush";
@@ -4294,9 +4301,9 @@ function openSheets(fileData) {
   });
   // Create window
   const winId = windowManager.createWindow("sheets", "Sheets", container);
-  // Refresh table on resize; no special action needed
+  // Redraw the grid when the window is resized so it fills the content area
   const winEl = windowManager.windows.get(winId).element;
-  winEl.addEventListener("resized", () => {});
+  winEl.addEventListener("resized", () => setTimeout(renderTable, 0));
   // Initial render
   renderTabs();
   renderTable();
