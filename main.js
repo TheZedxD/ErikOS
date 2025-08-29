@@ -1950,57 +1950,90 @@ function openTerminal() {
 
 /**
  * Application: System Processes
- * Displays a list of background scripts running on the server.  Users
- * can refresh the list and stop individual processes.  Data is
- * retrieved from /api/list-scripts and /api/stop-script.
+ * Shows running scripts and open windows, plus CPU and RAM usage.
+ * Data refreshes automatically while the window is open.
  */
 function openProcesses() {
   const container = document.createElement("div");
-  container.classList.add("file-manager");
-  const toolbar = document.createElement("div");
-  toolbar.classList.add("file-manager-toolbar");
-  const refreshBtn = document.createElement("button");
-  refreshBtn.textContent = "Refresh";
-  const statsSpan = document.createElement("span");
-  statsSpan.style.marginLeft = "8px";
-  toolbar.append(refreshBtn, statsSpan);
-  const content = document.createElement("div");
-  content.style.display = "flex";
-  content.style.gap = "8px";
-  const procPanel = document.createElement("div");
-  procPanel.style.flex = "1";
-  const winPanel = document.createElement("div");
-  winPanel.style.flex = "1";
-  content.append(procPanel, winPanel);
-  container.append(toolbar, content);
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
+  container.style.height = "100%";
+
+  const tabs = document.createElement("div");
+  tabs.classList.add("settings-tabs");
+  const contentArea = document.createElement("div");
+  contentArea.style.flex = "1";
+  contentArea.style.overflowY = "auto";
+
+  const panels = {};
+  const tabBtns = {};
+  function makePanel(name) {
+    const panel = document.createElement("div");
+    panel.classList.add("settings-section");
+    panel.style.display = "none";
+    panels[name] = panel;
+    contentArea.append(panel);
+    const btn = document.createElement("button");
+    btn.textContent = name;
+    btn.addEventListener("click", () => showPanel(name));
+    tabs.append(btn);
+    tabBtns[name] = btn;
+    return panel;
+  }
+
+  function showPanel(name) {
+    Object.entries(panels).forEach(([n, p]) => {
+      p.style.display = n === name ? "block" : "none";
+    });
+    Object.entries(tabBtns).forEach(([n, b]) => {
+      b.classList.toggle("active", n === name);
+    });
+  }
+
+  const procPanel = makePanel("Processes");
+  const scriptsSection = document.createElement("div");
+  const windowsSection = document.createElement("div");
+  procPanel.append(scriptsSection, windowsSection);
+
+  const statsPanel = makePanel("Stats");
+  const cpuText = document.createElement("p");
+  const ramText = document.createElement("p");
+  statsPanel.append(cpuText, ramText);
+
+  container.append(tabs, contentArea);
+  showPanel("Processes");
+
   const winId = windowManager.createWindow(
     "processes",
     "System Processes",
     container
   );
+
   async function load() {
-    procPanel.innerHTML = "<h3>Processes</h3>";
-    winPanel.innerHTML = "<h3>Open Windows</h3>";
     try {
       const statsResp = await fetch("/api/system-stats");
       const stats = await statsResp.json();
-      statsSpan.textContent = `CPU: ${stats.cpu}% | RAM: ${stats.ram}%`;
-    } catch (err) {
-      statsSpan.textContent = "Stats unavailable";
+      cpuText.textContent = `CPU Usage: ${stats.cpu}%`;
+      ramText.textContent = `RAM Usage: ${stats.ram}%`;
+    } catch {
+      cpuText.textContent = "CPU Usage: n/a";
+      ramText.textContent = "RAM Usage: n/a";
     }
+
+    scriptsSection.innerHTML = "<h3>Running Scripts</h3>";
     try {
       const resp = await fetch("/api/list-scripts");
       const data = await resp.json();
       if (!Array.isArray(data.processes) || data.processes.length === 0) {
         const p = document.createElement("p");
         p.textContent = "No running scripts.";
-        procPanel.append(p);
+        scriptsSection.append(p);
       } else {
         data.processes.forEach((proc) => {
           const row = document.createElement("div");
           row.classList.add("file-item");
           const nameSpan = document.createElement("span");
-          nameSpan.textContent = proc.script + " (PID " + proc.pid + ")";
+          nameSpan.textContent = `${proc.script} (PID ${proc.pid})`;
           const stopBtn = document.createElement("button");
           stopBtn.textContent = "Stop";
           stopBtn.addEventListener("click", async () => {
@@ -2010,9 +2043,7 @@ function openProcesses() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ pid: proc.pid }),
               });
-            } catch (err) {
-              // ignore
-            }
+            } catch {}
             load();
           });
           stopBtn.style.marginLeft = "auto";
@@ -2024,30 +2055,32 @@ function openProcesses() {
           stopBtn.style.borderRight = `2px solid var(--btn-border-dark)`;
           stopBtn.style.borderBottom = `2px solid var(--btn-border-dark)`;
           row.append(nameSpan, stopBtn);
-          procPanel.append(row);
+          scriptsSection.append(row);
         });
       }
-    } catch (err) {
+    } catch {
       const p = document.createElement("p");
       p.textContent = "Failed to load processes.";
-      procPanel.append(p);
+      scriptsSection.append(p);
     }
+
+    windowsSection.innerHTML = "<h3>Open Windows</h3>";
     windowManager.windows.forEach((info) => {
       const row = document.createElement("div");
       row.classList.add("file-item");
       const title = info.element.querySelector(".title");
       row.textContent = title ? title.textContent : "Unnamed";
-      winPanel.append(row);
+      windowsSection.append(row);
     });
-    if (winPanel.childElementCount === 1) {
+    if (windowsSection.childElementCount === 1) {
       const p = document.createElement("p");
       p.textContent = "No open windows.";
-      winPanel.append(p);
+      windowsSection.append(p);
     }
   }
-  refreshBtn.addEventListener("click", load);
+
   load();
-  const interval = setInterval(load, 5000);
+  const interval = setInterval(load, 4000);
   const closeBtn = windowManager.windows
     .get(winId)
     .element.querySelector(".controls button:last-child");
