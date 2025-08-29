@@ -59,6 +59,7 @@ start_server.bat
 ## Troubleshooting
 - **Ollama not found**: install the `ollama` CLI and make sure it is on your `PATH`.
 - **Permission denied** when accessing files: ensure the server has rights to the path and grant access when the browser prompts.
+- **Server exits or can't write logs under OneDrive**: move the project to a non‑synced folder (e.g. `C:\ERIKOS`) or allow the repo through Windows *Controlled Folder Access*.
 
 ## Security
 The backend only executes whitelisted terminal commands and protects file APIs against path traversal.
