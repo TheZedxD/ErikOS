@@ -22,19 +22,37 @@ import os
 import subprocess
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 
-import psutil
 from flask import Flask, jsonify, request, send_from_directory
 
 from tools.diagnostics import run_diagnostics
 
-# Determine the base directory where static files live.  The static
-# folder is the parent directory of this script (i.e. project root).
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parents[1]  # repo root
 STATIC_DIR = BASE_DIR
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+SERVER_LOG = LOGS_DIR / "server.log"
+
+
+def log_line(msg: object) -> None:
+    """Append ``msg`` to the server log."""
+    with SERVER_LOG.open("a", encoding="utf-8") as f:
+        f.write(str(msg) + "\n")
+
+
+for d in ("icons", "profiles", "logs", "documents"):
+    (BASE_DIR / d).mkdir(exist_ok=True)
+
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+
+try:  # optional dependency
+    import psutil  # type: ignore
+except Exception:  # pragma: no cover - best effort logging
+    psutil = None
+    log_line("psutil module not found; /api/system-stats will be unavailable")
 
 # In‑memory store of running subprocesses.  Keys are integer PIDs and
 # values are subprocess.Popen objects.  When a process exits it is
@@ -234,6 +252,12 @@ def serve_static(filename: str):
     above.  If the file does not exist a 404 will be returned.
     """
     return send_from_directory(STATIC_DIR, filename)
+
+
+@app.route("/api/health")
+def health():
+    """Health check endpoint."""
+    return jsonify({"ok": True, "cwd": str(BASE_DIR)})
 
 
 @app.route("/api/status")
@@ -540,8 +564,10 @@ def run_diagnostics_endpoint():
 
 
 if __name__ == "__main__":
-    # When run directly, start the Flask development server.  The
-    # server listens on all interfaces by default (0.0.0.0) so that
-    # requests from other hosts are possible if necessary.  Change
-    # host/port as required.
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    try:
+        log_line("[BOOT] starting Flask on 0.0.0.0:8000")
+        app.run(host="0.0.0.0", port=8000, debug=False)
+    except Exception as e:
+        log_line("[CRASH] " + repr(e))
+        log_line(traceback.format_exc())
+        raise
