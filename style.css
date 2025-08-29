@@ -167,7 +167,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -181,7 +182,7 @@ body {
   background-color: var(--desktop-bg);
   /* Wallpaper applied via CSS background image.  The image is defined in
      main.js based on user settings.  Fallback to our default wallpaper. */
-  background-image: url('./images/wallpaper.png');
+  background-image: url("./images/wallpaper.png");
   background-size: cover;
   background-position: center;
 }
@@ -257,8 +258,9 @@ body {
   right: 8px;
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
-  box-shadow: 0 0 0 1px var(--window-border-light) inset,
-              0 0 0 2px var(--window-border-dark) inset;
+  box-shadow:
+    0 0 0 1px var(--window-border-light) inset,
+    0 0 0 2px var(--window-border-dark) inset;
   list-style: none;
   padding: 4px;
   margin: 0;
@@ -343,8 +345,9 @@ body {
   min-height: 150px;
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
-  box-shadow: 0 0 0 1px var(--window-border-light) inset,
-              0 0 0 2px var(--window-border-dark) inset;
+  box-shadow:
+    0 0 0 1px var(--window-border-light) inset,
+    0 0 0 2px var(--window-border-dark) inset;
   display: flex;
   flex-direction: column;
 }
@@ -355,7 +358,11 @@ body {
   display: flex;
   align-items: center;
   padding: 0 6px;
-  background: linear-gradient(to bottom, var(--title-gradient-light), var(--title-gradient-dark));
+  background: linear-gradient(
+    to bottom,
+    var(--title-gradient-light),
+    var(--title-gradient-dark)
+  );
   color: #ffffff;
   user-select: none;
   cursor: move;
@@ -408,7 +415,7 @@ body {
 }
 
 /* Grid layout styles for desktop icons */
-#desktop[data-layout='grid'] {
+#desktop[data-layout="grid"] {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
@@ -416,7 +423,7 @@ body {
   padding: 8px;
 }
 
-#desktop[data-layout='grid'] .icon {
+#desktop[data-layout="grid"] .icon {
   position: relative;
   margin: 8px;
 }
@@ -501,8 +508,9 @@ body {
   width: 240px;
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
-  box-shadow: 0 0 0 1px var(--window-border-light) inset,
-              0 0 0 2px var(--window-border-dark) inset;
+  box-shadow:
+    0 0 0 1px var(--window-border-light) inset,
+    0 0 0 2px var(--window-border-dark) inset;
   padding: 4px;
   display: none;
   flex-direction: column;
@@ -563,8 +571,9 @@ body {
 #login-screen .login-container {
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
-  box-shadow: 0 0 0 1px var(--window-border-light) inset,
-              0 0 0 2px var(--window-border-dark) inset;
+  box-shadow:
+    0 0 0 1px var(--window-border-light) inset,
+    0 0 0 2px var(--window-border-dark) inset;
   padding: 16px;
   min-width: 320px;
 }
@@ -658,8 +667,9 @@ body {
   max-width: 600px;
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
-  box-shadow: 0 0 0 1px var(--window-border-light) inset,
-              0 0 0 2px var(--window-border-dark) inset;
+  box-shadow:
+    0 0 0 1px var(--window-border-light) inset,
+    0 0 0 2px var(--window-border-dark) inset;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -707,8 +717,9 @@ body {
   position: absolute;
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
-  box-shadow: 0 0 0 1px var(--window-border-light) inset,
-              0 0 0 2px var(--window-border-dark) inset;
+  box-shadow:
+    0 0 0 1px var(--window-border-light) inset,
+    0 0 0 2px var(--window-border-dark) inset;
   padding: 4px 0;
   list-style: none;
   margin: 0;

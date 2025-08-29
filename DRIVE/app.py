@@ -16,11 +16,11 @@ authentication or rate limiting; it is intended for a trusted local
 environment.
 """
 
+import base64
 import json
 import os
-import sys
 import subprocess
-import base64
+import sys
 import tempfile
 from pathlib import Path
 
@@ -53,10 +53,12 @@ def _scan_model_dirs() -> list[str]:
     env_dir = os.environ.get("OLLAMA_MODELS")
     if env_dir:
         dirs.append(Path(env_dir))
-    dirs.extend([
-        Path.home() / ".ollama" / "models",
-        Path("/usr/share/ollama/models"),
-    ])
+    dirs.extend(
+        [
+            Path.home() / ".ollama" / "models",
+            Path("/usr/share/ollama/models"),
+        ]
+    )
     models: set[str] = set()
     for d in dirs:
         if d.is_dir():
@@ -105,13 +107,12 @@ def detect_ollama_models() -> tuple[list[str], str | None]:
     return models, error
 
 
-
 @app.route("/api/ollama/models")
 def list_ollama_models():
     """Return a list of available models from the local Ollama installation."""
     models, error = detect_ollama_models()
     if not models:
-        return jsonify({"models": [], "error": error}), 500
+        return jsonify({"ok": False, "models": [], "error": error}), 500
     resp = {"models": models}
     if error:
         resp["warning"] = error
@@ -133,7 +134,7 @@ def run_ollama():
     image_b64 = data.get("image")
     image_file: str | None = None
     if not prompt and not image_b64:
-        return jsonify({"error": "prompt is required"}), 400
+        return jsonify({"ok": False, "error": "prompt is required"}), 400
     if image_b64:
         try:
             raw = base64.b64decode(image_b64)
@@ -142,10 +143,10 @@ def run_ollama():
             tmp.close()
             image_file = tmp.name
         except Exception as exc:
-            return jsonify({"error": f"invalid image: {exc}"}), 400
+            return jsonify({"ok": False, "error": f"invalid image: {exc}"}), 400
     models, err = detect_ollama_models()
     if model not in models:
-        return jsonify({"error": f"model '{model}' is not installed"}), 400
+        return jsonify({"ok": False, "error": f"model '{model}' is not installed"}), 400
     try:
         cmd = ["ollama", "run", model, prompt]
         if image_file:
@@ -158,14 +159,14 @@ def run_ollama():
         )
         if result.returncode != 0:
             app.logger.error("ollama run failed: %s", result.stderr.strip())
-            return jsonify({"error": result.stderr.strip()}), 500
+            return jsonify({"ok": False, "error": result.stderr.strip()}), 500
         return jsonify({"response": result.stdout.strip()})
     except FileNotFoundError:
         app.logger.exception("ollama executable not found while running model")
-        return jsonify({"error": "ollama executable not found"}), 500
+        return jsonify({"ok": False, "error": "ollama executable not found"}), 500
     except Exception as exc:
         app.logger.exception("Error running ollama model")
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
     finally:
         if image_file and os.path.exists(image_file):
             os.unlink(image_file)
@@ -206,16 +207,21 @@ def process_icons_endpoint():
     icons_dir = BASE_DIR / "icons"
     script_path = Path(__file__).resolve().parent / "process_icons.py"
     try:
-        result = subprocess.run([
-            sys.executable,
-            str(script_path),
-            str(icons_dir)
-        ], capture_output=True, text=True)
+        result = subprocess.run(
+            [sys.executable, str(script_path), str(icons_dir)],
+            capture_output=True,
+            text=True,
+        )
         if result.returncode != 0:
-            return jsonify({"success": False, "error": result.stderr.strip()}), 500
+            return (
+                jsonify(
+                    {"ok": False, "success": False, "error": result.stderr.strip()}
+                ),
+                500,
+            )
         return jsonify({"success": True, "output": result.stdout.strip()})
     except Exception as exc:
-        return jsonify({"success": False, "error": str(exc)}), 500
+        return jsonify({"ok": False, "success": False, "error": str(exc)}), 500
 
 
 @app.route("/api/system-stats")
@@ -226,7 +232,7 @@ def system_stats():
         ram = psutil.virtual_memory().percent
         return jsonify({"cpu": cpu, "ram": ram})
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/list-icons")
@@ -267,7 +273,7 @@ def list_directory():
     try:
         path = _safe_path(rel)
         if not path.exists() or not path.is_dir():
-            return jsonify({"error": "Not a directory"}), 400
+            return jsonify({"ok": False, "error": "Not a directory"}), 400
         items = []
         for entry in os.scandir(path):
             info = entry.stat()
@@ -282,9 +288,9 @@ def list_directory():
             )
         return jsonify({"items": items, "path": rel})
     except ValueError:
-        return jsonify({"error": "Invalid path"}), 400
+        return jsonify({"ok": False, "error": "Invalid path"}), 400
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/create-folder", methods=["POST"])
@@ -293,17 +299,17 @@ def create_folder():
     rel = data.get("path", "")
     name = data.get("name")
     if not name:
-        return jsonify({"error": "name is required"}), 400
+        return jsonify({"ok": False, "error": "name is required"}), 400
     try:
         path = _safe_path(rel) / name
         path.mkdir(parents=False, exist_ok=False)
         return jsonify({"success": True})
     except FileExistsError:
-        return jsonify({"error": "Folder exists"}), 400
+        return jsonify({"ok": False, "error": "Folder exists"}), 400
     except ValueError:
-        return jsonify({"error": "Invalid path"}), 400
+        return jsonify({"ok": False, "error": "Invalid path"}), 400
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/rename", methods=["POST"])
@@ -312,18 +318,18 @@ def rename_item():
     rel = data.get("path")
     new_name = data.get("new_name")
     if not rel or not new_name:
-        return jsonify({"error": "path and new_name required"}), 400
+        return jsonify({"ok": False, "error": "path and new_name required"}), 400
     try:
         src = _safe_path(rel)
         dst = src.parent / new_name
         src.rename(dst)
         return jsonify({"success": True})
     except FileNotFoundError:
-        return jsonify({"error": "Not found"}), 404
+        return jsonify({"ok": False, "error": "Not found"}), 404
     except ValueError:
-        return jsonify({"error": "Invalid path"}), 400
+        return jsonify({"ok": False, "error": "Invalid path"}), 400
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/delete", methods=["POST"])
@@ -331,7 +337,7 @@ def delete_item():
     data = request.get_json(silent=True) or {}
     rel = data.get("path")
     if not rel:
-        return jsonify({"error": "path is required"}), 400
+        return jsonify({"ok": False, "error": "path is required"}), 400
     try:
         target = _safe_path(rel)
         if target.is_dir():
@@ -340,14 +346,14 @@ def delete_item():
             target.unlink()
         return jsonify({"success": True})
     except FileNotFoundError:
-        return jsonify({"error": "Not found"}), 404
+        return jsonify({"ok": False, "error": "Not found"}), 404
     except OSError as exc:
         # e.g. directory not empty
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"ok": False, "error": str(exc)}), 400
     except ValueError:
-        return jsonify({"error": "Invalid path"}), 400
+        return jsonify({"ok": False, "error": "Invalid path"}), 400
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -355,7 +361,7 @@ def upload_file():
     rel = request.form.get("path", "")
     file = request.files.get("file")
     if not file:
-        return jsonify({"error": "file is required"}), 400
+        return jsonify({"ok": False, "error": "file is required"}), 400
     try:
         directory = _safe_path(rel)
         directory.mkdir(parents=True, exist_ok=True)
@@ -363,9 +369,9 @@ def upload_file():
         file.save(dest)
         return jsonify({"success": True})
     except ValueError:
-        return jsonify({"error": "Invalid path"}), 400
+        return jsonify({"ok": False, "error": "Invalid path"}), 400
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/run-script", methods=["POST"])
@@ -380,19 +386,16 @@ def run_script():
     data = request.get_json(silent=True) or {}
     script_name = data.get("script_name")
     if not script_name:
-        return jsonify({"error": "script_name is required"}), 400
+        return jsonify({"ok": False, "error": "script_name is required"}), 400
     script_path = BASE_DIR / script_name
     if not script_path.exists():
-        return jsonify({"error": f"Script '{script_name}' not found"}), 404
+        return jsonify({"ok": False, "error": f"Script '{script_name}' not found"}), 404
     try:
-        proc = subprocess.Popen([
-            sys.executable,
-            str(script_path)
-        ])
+        proc = subprocess.Popen([sys.executable, str(script_path)])
         processes[proc.pid] = proc
         return jsonify({"pid": proc.pid, "script": script_name})
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/stop-script", methods=["POST"])
@@ -405,10 +408,10 @@ def stop_script():
     data = request.get_json(silent=True) or {}
     pid = data.get("pid")
     if pid is None:
-        return jsonify({"error": "pid is required"}), 400
+        return jsonify({"ok": False, "error": "pid is required"}), 400
     proc = processes.get(pid)
     if not proc:
-        return jsonify({"error": f"Process {pid} not found"}), 404
+        return jsonify({"ok": False, "error": f"Process {pid} not found"}), 404
     proc.terminate()
     try:
         proc.wait(timeout=5)
@@ -427,7 +430,9 @@ def list_scripts():
         if proc.poll() is not None:
             processes.pop(pid)
         else:
-            alive.append({"pid": pid, "script": proc.args[-1] if hasattr(proc, 'args') else ''})
+            alive.append(
+                {"pid": pid, "script": proc.args[-1] if hasattr(proc, "args") else ""}
+            )
     return jsonify({"processes": alive})
 
 
@@ -444,21 +449,26 @@ def execute_command():
     data = request.get_json(silent=True) or {}
     cmd_line = data.get("command")
     if not cmd_line:
-        return jsonify({"error": "command is required"}), 400
+        return jsonify({"ok": False, "error": "command is required"}), 400
     tokens = cmd_line.strip().split()
     if not tokens:
-        return jsonify({"error": "Empty command"}), 400
+        return jsonify({"ok": False, "error": "Empty command"}), 400
     if tokens[0] not in ALLOWED_COMMANDS:
-        return jsonify({"error": f"Command '{tokens[0]}' is not allowed"}), 403
+        return (
+            jsonify({"ok": False, "error": f"Command '{tokens[0]}' is not allowed"}),
+            403,
+        )
     try:
         result = subprocess.run(tokens, capture_output=True, text=True)
-        return jsonify({
-            "command": cmd_line,
-            "returncode": result.returncode,
-            "output": (result.stdout + result.stderr).strip()
-        })
+        return jsonify(
+            {
+                "command": cmd_line,
+                "returncode": result.returncode,
+                "output": (result.stdout + result.stderr).strip(),
+            }
+        )
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 if __name__ == "__main__":

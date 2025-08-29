@@ -13,8 +13,8 @@ Dependencies:
     Pillow must be installed (`pip install pillow`).
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 try:
