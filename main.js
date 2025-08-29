@@ -2174,9 +2174,8 @@ async function openSettings() {
   desktopPanel.style.flexDirection = "column";
   desktopPanel.style.gap = "8px";
   const iconListResp = await fetch("/api/list-icons").catch(() => null);
-  const availableIcons = iconListResp
-    ? (await iconListResp.json()).icons || []
-    : [];
+  const iconData = iconListResp ? await iconListResp.json() : {};
+  let availableIcons = iconData.icons || [];
   const layoutHeading = document.createElement("h3");
   layoutHeading.textContent = "Icon Layout";
   const freeRadio = document.createElement("input");
@@ -2242,6 +2241,7 @@ async function openSettings() {
     row.append(lbl);
 
     const select = document.createElement("select");
+    select.classList.add("icon-select");
     const defOpt = document.createElement("option");
     defOpt.value = app.icon;
     defOpt.textContent = "(default)";
@@ -2267,7 +2267,7 @@ async function openSettings() {
       initDesktop();
     });
     const iconBtn = document.createElement("button");
-    iconBtn.textContent = "Icon";
+    iconBtn.textContent = "Upload Icon";
     const resetIconBtn = document.createElement("button");
     resetIconBtn.textContent = "Reset";
     const fileInput = document.createElement("input");
@@ -2275,18 +2275,40 @@ async function openSettings() {
     fileInput.accept = "image/png";
     fileInput.style.display = "none";
     iconBtn.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", () => {
+    fileInput.addEventListener("change", async () => {
       const file = fileInput.files[0];
       if (!file || !currentUser) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
+      const form = new FormData();
+      form.append("file", file);
+      try {
+        const resp = await fetch("/api/upload-icon", {
+          method: "POST",
+          body: form,
+        });
+        const data = await resp.json();
+        if (!data.ok) {
+          alert(data.error || "Upload failed");
+          return;
+        }
+        const filename = data.file;
+        if (!availableIcons.includes(filename)) {
+          availableIcons.push(filename);
+          document.querySelectorAll("select.icon-select").forEach((sel) => {
+            const opt = document.createElement("option");
+            opt.value = "./icons/" + filename;
+            opt.textContent = filename;
+            sel.append(opt);
+          });
+        }
         currentUser.customIcons = currentUser.customIcons || {};
-        currentUser.customIcons[app.id] = ev.target.result;
+        currentUser.customIcons[app.id] = "./icons/" + filename;
         saveProfiles(profiles);
         initDesktop();
-        select.value = ev.target.result;
-      };
-      reader.readAsDataURL(file);
+        select.value = "./icons/" + filename;
+      } catch (err) {
+        console.error("Upload failed", err);
+        alert("Upload failed");
+      }
     });
     resetIconBtn.addEventListener("click", () => {
       if (!currentUser || !currentUser.customIcons) return;
