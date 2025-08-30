@@ -19,37 +19,95 @@ environment.
 import base64
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
+import time
 import traceback
+import uuid
+from datetime import datetime
 from pathlib import Path
+import logging
+from logging.handlers import RotatingFileHandler
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, g
 
 from tools.diagnostics import run_diagnostics
+from config import settings
+from __version__ import __version__
 
-BASE_DIR = Path(__file__).resolve().parents[1]  # repo root
+BASE_DIR = settings.root_dir
 STATIC_DIR = BASE_DIR
 LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
-SERVER_LOG = LOGS_DIR / "server.log"
+LOG_FILE = LOGS_DIR / f"server-{datetime.now():%Y%m%d}.log"
 
 
-def log_line(msg: object) -> None:
-    """Append ``msg`` to the server log."""
-    try:
-        with SERVER_LOG.open("a", encoding="utf-8") as f:
-            f.write(str(msg) + "\n")
-    except Exception:
-        pass
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        data: dict[str, object] = {
+            "time": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "message": record.getMessage(),
+        }
+        for key in ("request_id", "path", "status", "duration"):
+            value = getattr(record, key, None)
+            if value is not None:
+                data[key] = value
+        return json.dumps(data)
 
 
-for d in ("icons", "profiles", "logs", "documents"):
-    (BASE_DIR / d).mkdir(exist_ok=True)
+handler = RotatingFileHandler(LOG_FILE, maxBytes=1_000_000, backupCount=5)
+handler.setFormatter(JsonFormatter())
+logger = logging.getLogger("server")
+logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
+logger.addHandler(handler)
 
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+app.logger = logger
+
+
+@app.before_request
+def _start_request() -> None:
+    g.request_id = uuid.uuid4().hex
+    g.start_time = time.time()
+
+
+def _origin_allowed(origin: str) -> bool:
+    for allowed in settings.allowed_origins:
+        if allowed.endswith("*"):
+            if origin.startswith(allowed[:-1]):
+                return True
+        elif origin == allowed:
+            return True
+    return False
+
+
+@app.after_request
+def _log_response(response):
+    duration = time.time() - g.start_time
+    logger.info(
+        "request",
+        extra={
+            "request_id": g.request_id,
+            "path": request.path,
+            "status": response.status_code,
+            "duration": round(duration, 3),
+        },
+    )
+    response.headers["X-Request-ID"] = g.request_id
+    origin = request.headers.get("Origin")
+    if origin and _origin_allowed(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+for d in ("icons", "profiles", "logs", "documents"):
+    (BASE_DIR / d).mkdir(exist_ok=True)
 
 
 @app.get("/api/health")
@@ -61,19 +119,36 @@ try:  # optional dependency
     import psutil  # type: ignore
 except Exception:  # pragma: no cover - best effort logging
     psutil = None
-    log_line("psutil module not found; /api/system-stats will be unavailable")
+    logger.warning("psutil module not found; /api/system-stats will be unavailable")
 
-# In‑memory store of running subprocesses.  Keys are integer PIDs and
-# values are subprocess.Popen objects.  When a process exits it is
-# removed from this dictionary.  This simple store is not
-# persisted across server restarts.
+# In-memory store of running subprocesses.  Keys are integer PIDs and
+# values are subprocess.Popen objects.  The mapping is persisted to a
+# small JSON file so that PIDs can be verified between requests.
+RUNTIME_DIR = Path(__file__).resolve().parent / "runtime"
+RUNTIME_DIR.mkdir(exist_ok=True)
+STATE_FILE = RUNTIME_DIR / "processes.json"
 processes: dict[int, subprocess.Popen] = {}
 
-# Whitelist of allowed shell commands for execute_command.  Only
-# commands in this list (by base command name) will be executed.  You
-# can customise this list to meet your needs.  For example, on
-# Windows you may wish to permit "dir" instead of "ls".
-ALLOWED_COMMANDS = {"ls", "dir", "echo", "ping"}
+
+def _save_state() -> None:
+    try:
+        with STATE_FILE.open("w", encoding="utf-8") as fh:
+            json.dump({pid: proc.args[-1] if hasattr(proc, "args") else "" for pid, proc in processes.items()}, fh)
+    except Exception:
+        app.logger.exception("Failed saving process state")
+
+
+def _load_state() -> dict[int, str]:
+    try:
+        with STATE_FILE.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+            return {int(k): v for k, v in data.items()}
+    except Exception:
+        return {}
+
+
+# Whitelist of allowed shell commands for execute_command.
+ALLOWED_COMMANDS = set(settings.terminal_whitelist)
 
 # Directory where chat histories are stored.  A JSON file is created for
 # each profile under this folder.
@@ -261,18 +336,22 @@ def serve_static(filename: str):
     above.  If the file does not exist a 404 will be returned.
     """
     return send_from_directory(STATIC_DIR, filename)
-
-
-@app.route("/api/health")
-def health():
-    """Health check endpoint."""
-    return jsonify({"ok": True, "cwd": str(BASE_DIR)})
-
-
 @app.route("/api/status")
 def status() -> "Response":
-    """Return a simple JSON object indicating the server is running."""
-    return jsonify({"status": "running"})
+    """Return health information for readiness checks."""
+    return jsonify(
+        {
+            "status": "ok",
+            "version": __version__,
+            "time": datetime.utcnow().isoformat(),
+        }
+    )
+
+
+@app.route("/api/version")
+def get_version():
+    """Return the application version."""
+    return jsonify({"version": __version__})
 
 
 @app.route("/api/process-icons", methods=["POST"])
@@ -328,7 +407,9 @@ def list_icons():
 def upload_icon():
     """Upload a PNG icon to the icons directory."""
     file = request.files.get("file")
-    if not file or not file.filename.lower().endswith(".png"):
+    if request.content_length and request.content_length > settings.max_upload_mb * 1024 * 1024:
+        return jsonify({"ok": False, "error": "File too large"}), 413
+    if not file or not file.filename.lower().endswith(".png") or file.mimetype != "image/png":
         return jsonify({"ok": False, "error": "png only"}), 400
     icon_dir = BASE_DIR / "icons"
     icon_dir.mkdir(parents=True, exist_ok=True)
@@ -341,20 +422,19 @@ def upload_icon():
 # File manager endpoints
 # ---------------------------------------------------------------------------
 
-# Base directory that the file manager is allowed to access.  Paths provided
-# by the client are interpreted relative to this directory.  The resolved path
-# is always checked to ensure it does not escape this directory to mitigate
-# directory traversal attacks.  The base directory can be overridden with the
-# FILE_BASE environment variable for flexibility.
-FILE_BASE = Path(os.environ.get("FILE_BASE", BASE_DIR)).resolve()
+# Base directory that the file manager is allowed to access. Paths provided by
+# the client are interpreted relative to this directory. The resolved path is
+# always checked to ensure it does not escape this directory to mitigate
+# directory traversal attacks.
+FILE_BASE = settings.root_dir.resolve()
 
 
-def _safe_path(rel_path: str) -> Path:
-    """Return an absolute path under FILE_BASE for rel_path.
+def safe_join(rel_path: str) -> Path:
+    """Return an absolute path under FILE_BASE for ``rel_path``.
 
-    Raises ValueError if the resulting path is outside FILE_BASE."""
+    Raises ``ValueError`` if the resulting path is outside ``FILE_BASE``."""
     target = (FILE_BASE / rel_path).resolve()
-    if not str(target).startswith(str(FILE_BASE.resolve())):
+    if not target.is_relative_to(FILE_BASE):
         raise ValueError("Path escapes base directory")
     return target
 
@@ -364,7 +444,7 @@ def list_directory():
     """Return contents of a directory as JSON."""
     rel = request.args.get("path", "")
     try:
-        path = _safe_path(rel)
+        path = safe_join(rel)
         if not path.exists() or not path.is_dir():
             return jsonify({"ok": False, "error": "Not a directory"}), 400
         items = []
@@ -394,7 +474,7 @@ def create_folder():
     if not name:
         return jsonify({"ok": False, "error": "name is required"}), 400
     try:
-        path = _safe_path(rel) / name
+        path = safe_join(rel) / name
         path.mkdir(parents=False, exist_ok=False)
         return jsonify({"success": True})
     except FileExistsError:
@@ -413,7 +493,7 @@ def rename_item():
     if not rel or not new_name:
         return jsonify({"ok": False, "error": "path and new_name required"}), 400
     try:
-        src = _safe_path(rel)
+        src = safe_join(rel)
         dst = src.parent / new_name
         src.rename(dst)
         return jsonify({"success": True})
@@ -432,7 +512,7 @@ def delete_item():
     if not rel:
         return jsonify({"ok": False, "error": "path is required"}), 400
     try:
-        target = _safe_path(rel)
+        target = safe_join(rel)
         if target.is_dir():
             os.rmdir(target)
         else:
@@ -455,8 +535,10 @@ def upload_file():
     file = request.files.get("file")
     if not file:
         return jsonify({"ok": False, "error": "file is required"}), 400
+    if request.content_length and request.content_length > settings.max_upload_mb * 1024 * 1024:
+        return jsonify({"ok": False, "error": "File too large"}), 413
     try:
-        directory = _safe_path(rel)
+        directory = safe_join(rel)
         directory.mkdir(parents=True, exist_ok=True)
         dest = directory / file.filename
         file.save(dest)
@@ -486,6 +568,7 @@ def run_script():
     try:
         proc = subprocess.Popen([sys.executable, str(script_path)])
         processes[proc.pid] = proc
+        _save_state()
         return jsonify({"pid": proc.pid, "script": script_name})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
@@ -502,15 +585,19 @@ def stop_script():
     pid = data.get("pid")
     if pid is None:
         return jsonify({"ok": False, "error": "pid is required"}), 400
+    state = _load_state()
+    if pid not in state:
+        return jsonify({"ok": False, "error": f"Process {pid} not found"}), 404
     proc = processes.get(pid)
     if not proc:
-        return jsonify({"ok": False, "error": f"Process {pid} not found"}), 404
+        return jsonify({"ok": False, "error": f"Process {pid} not running"}), 404
     proc.terminate()
     try:
         proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
         proc.kill()
     processes.pop(pid, None)
+    _save_state()
     return jsonify({"stopped": pid})
 
 
@@ -526,6 +613,7 @@ def list_scripts():
             alive.append(
                 {"pid": pid, "script": proc.args[-1] if hasattr(proc, "args") else ""}
             )
+    _save_state()
     return jsonify({"processes": alive})
 
 
@@ -543,16 +631,16 @@ def execute_command():
     cmd_line = data.get("command")
     if not cmd_line:
         return jsonify({"ok": False, "error": "command is required"}), 400
-    tokens = cmd_line.strip().split()
+    try:
+        tokens = shlex.split(cmd_line)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
     if not tokens:
         return jsonify({"ok": False, "error": "Empty command"}), 400
     if tokens[0] not in ALLOWED_COMMANDS:
-        return (
-            jsonify({"ok": False, "error": f"Command '{tokens[0]}' is not allowed"}),
-            403,
-        )
+        return jsonify({"ok": False, "error": "Command not permitted"}), 400
     try:
-        result = subprocess.run(tokens, capture_output=True, text=True)
+        result = subprocess.run(tokens, capture_output=True, text=True, timeout=15)
         return jsonify(
             {
                 "command": cmd_line,
@@ -574,10 +662,11 @@ def run_diagnostics_endpoint():
 
 if __name__ == "__main__":
     try:
-        port = int(os.environ.get("FLASK_RUN_PORT", "8000"))
-        log_line(f"[BOOT] starting Flask on 127.0.0.1:{port}")
-        app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
-    except Exception as e:
-        log_line("[CRASH] " + repr(e))
-        log_line(traceback.format_exc())
+        logger.info(
+            "boot",
+            extra={"request_id": "-", "path": "startup", "status": 0, "duration": 0},
+        )
+        app.run(host=settings.host, port=settings.port, debug=False, use_reloader=False)
+    except Exception:
+        logger.exception("server crashed")
         raise
