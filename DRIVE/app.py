@@ -38,8 +38,11 @@ SERVER_LOG = LOGS_DIR / "server.log"
 
 def log_line(msg: object) -> None:
     """Append ``msg`` to the server log."""
-    with SERVER_LOG.open("a", encoding="utf-8") as f:
-        f.write(str(msg) + "\n")
+    try:
+        with SERVER_LOG.open("a", encoding="utf-8") as f:
+            f.write(str(msg) + "\n")
+    except Exception:
+        pass
 
 
 for d in ("icons", "profiles", "logs", "documents"):
@@ -47,6 +50,12 @@ for d in ("icons", "profiles", "logs", "documents"):
 
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+
+
+@app.get("/api/health")
+def health():
+    """Simple health check endpoint."""
+    return jsonify({"ok": True, "cwd": str(BASE_DIR)})
 
 try:  # optional dependency
     import psutil  # type: ignore
@@ -565,8 +574,8 @@ def run_diagnostics_endpoint():
 
 if __name__ == "__main__":
     try:
-        log_line("[BOOT] starting Flask on 0.0.0.0:8000")
-        app.run(host="0.0.0.0", port=8000, debug=False)
+        log_line("[BOOT] starting Flask on 127.0.0.1:8000")
+        app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
     except Exception as e:
         log_line("[CRASH] " + repr(e))
         log_line(traceback.format_exc())

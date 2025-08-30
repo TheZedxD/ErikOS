@@ -1,46 +1,42 @@
 @echo on
 setlocal enabledelayedexpansion
-rem --- Always run from repo root ---
+REM --- Always run from this .bat's directory ---
 cd /d "%~dp0"
+
+REM --- Create logs folder ---
 if not exist logs mkdir logs
-echo [START] %date% %time% > logs\server.log
+set LOGFILE=logs\server.log
+echo [START] %date% %time% > "%LOGFILE%"
 
-rem --- Find Python ---
-where python >> logs\server.log 2>&1
-if errorlevel 1 (
-  echo Python not found. Install Python and try again. | tee -a logs\server.log
-  pause & exit /b 1
-)
-python --version >> logs\server.log 2>&1
+REM --- Prefer venv's Python; fallback to system python ---
+set PY_EXE=.venv\Scripts\python.exe
+if not exist "%PY_EXE%" set PY_EXE=python
 
-rem --- Ensure venv exists; create if missing ---
-if not exist .venv (
-  echo Creating virtual environment... | tee -a logs\server.log
-  python -m venv .venv >> logs\server.log 2>&1
-)
-call .venv\Scripts\activate >> logs\server.log 2>&1
-if errorlevel 1 (
-  echo Failed to activate venv. | tee -a logs\server.log
-  pause & exit /b 1
+where "%PY_EXE%" >> "%LOGFILE%" 2>&1
+"%PY_EXE%" --version >> "%LOGFILE%" 2>&1
+
+REM --- Ensure deps present (idempotent) ---
+echo [DEPS] upgrading pip & installing reqs >> "%LOGFILE%"
+"%PY_EXE%" -m pip install --upgrade pip >> "%LOGFILE%" 2>&1
+if exist requirements.txt (
+  "%PY_EXE%" -m pip install -r requirements.txt >> "%LOGFILE%" 2>&1
 )
 
-rem --- Install/verify deps silently but logged ---
-echo Installing/validating deps... | tee -a logs\server.log
-python -m pip install --upgrade pip >> logs\server.log 2>&1
-python -m pip install Flask Pillow psutil >> logs\server.log 2>&1
+REM --- Environment hints for Windows consoles ---
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 
-rem --- Print env sanity to log ---
-echo VIRTUAL_ENV=!VIRTUAL_ENV! >> logs\server.log
-echo PYTHONPATH=!PYTHONPATH! >> logs\server.log
-
-rem --- Start Flask app (sticky console + logging) ---
-echo Launching DRIVE\app.py on http://localhost:8000 ... | tee -a logs\server.log
-python DRIVE\app.py >> logs\server.log 2>&1
+REM --- Launch Flask app directly (no 'start', keep in same window) ---
+echo [RUN] launching DRIVE\app.py on http://127.0.0.1:8000 >> "%LOGFILE%"
+"%PY_EXE%" DRIVE\app.py >> "%LOGFILE%" 2>&1
 set ERR=%ERRORLEVEL%
-echo [EXIT CODE] !ERR! >> logs\server.log
+echo [EXIT CODE] !ERR! >> "%LOGFILE%"
+
 if not "!ERR!"=="0" (
-  echo Server exited with error code !ERR!. See logs\server.log for details.
-  pause & exit /b !ERR!
+  echo Server exited with error !ERR!. See "%LOGFILE%" for details.
+  pause
+  exit /b !ERR!
 )
-echo Server stopped normally.
+
+echo Server stopped normally. Press any key to close.
 pause
