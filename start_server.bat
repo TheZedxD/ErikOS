@@ -1,5 +1,6 @@
 @echo on
 setlocal enabledelayedexpansion
+
 REM --- Always run from this .bat's directory ---
 cd /d "%~dp0"
 
@@ -8,18 +9,20 @@ if not exist logs mkdir logs
 set LOGFILE=logs\server.log
 echo [START] %date% %time% > "%LOGFILE%"
 
-REM --- Prefer venv's Python; fallback to system python ---
-set PY_EXE=.venv\Scripts\python.exe
-if not exist "%PY_EXE%" set PY_EXE=python
+REM --- Ensure virtual environment exists ---
+if not exist .venv (
+  echo [VENV] creating virtual environment >> "%LOGFILE%"
+  python -m venv .venv >> "%LOGFILE%" 2>&1 || goto :error
+)
 
-where "%PY_EXE%" >> "%LOGFILE%" 2>&1
-"%PY_EXE%" --version >> "%LOGFILE%" 2>&1
+REM --- Activate virtual environment ---
+call .venv\Scripts\activate >> "%LOGFILE%" 2>&1 || goto :error
 
 REM --- Ensure deps present (idempotent) ---
 echo [DEPS] upgrading pip & installing reqs >> "%LOGFILE%"
-"%PY_EXE%" -m pip install --upgrade pip >> "%LOGFILE%" 2>&1
+python -m pip install --upgrade pip >> "%LOGFILE%" 2>&1 || goto :error
 if exist requirements.txt (
-  "%PY_EXE%" -m pip install -r requirements.txt >> "%LOGFILE%" 2>&1
+  python -m pip install -r requirements.txt >> "%LOGFILE%" 2>&1 || goto :error
 )
 
 REM --- Environment hints for Windows consoles ---
@@ -28,15 +31,18 @@ set PYTHONIOENCODING=utf-8
 
 REM --- Launch Flask app directly (no 'start', keep in same window) ---
 echo [RUN] launching DRIVE\app.py on http://127.0.0.1:8000 >> "%LOGFILE%"
-"%PY_EXE%" DRIVE\app.py >> "%LOGFILE%" 2>&1
+python DRIVE\app.py >> "%LOGFILE%" 2>&1
 set ERR=%ERRORLEVEL%
 echo [EXIT CODE] !ERR! >> "%LOGFILE%"
 
-if not "!ERR!"=="0" (
-  echo Server exited with error !ERR!. See "%LOGFILE%" for details.
-  pause
-  exit /b !ERR!
-)
+if not "!ERR!"=="0" goto :error
 
 echo Server stopped normally. Press any key to close.
 pause
+exit /b 0
+
+:error
+set ERR=%ERRORLEVEL%
+echo Server exited with error !ERR!. See "%LOGFILE%" for details.
+pause
+exit /b !ERR!
