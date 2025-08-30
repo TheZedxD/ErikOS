@@ -574,8 +574,9 @@ def run_diagnostics_endpoint():
 
 if __name__ == "__main__":
     try:
-        log_line("[BOOT] starting Flask on 127.0.0.1:8000")
-        app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
+        port = int(os.environ.get("FLASK_RUN_PORT", "8000"))
+        log_line(f"[BOOT] starting Flask on 127.0.0.1:{port}")
+        app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
     except Exception as e:
         log_line("[CRASH] " + repr(e))
         log_line(traceback.format_exc())

@@ -24,33 +24,21 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 
 ## Installation
 
-### Install scripts
-Run `install.sh` (Linux) or `install.bat` (Windows) to create a virtual environment and install Python dependencies:
+Run the bundled start script. It will create a virtual environment,
+install dependencies and launch the server.
 
+### Windows
 ```
-Flask
-Pillow
-psutil
-```
-
-### Starting the server
-Use `start_server.sh` or `start_server.bat` to launch the backend on port 8000.
-
-```
-./start_server.sh
-# or
 start_server.bat
 ```
 
-## Usage
-
-### Windows
-1. Run `start_server.bat`.
-2. Open `http://localhost:8000/index.html` in Chrome or Edge.
-
 ### Linux
-1. `./start_server.sh`
-2. Open `http://localhost:8000/index.html` in a Chromium browser.
+```
+./start_server.sh
+```
+
+The script automatically opens your default browser to the correct URL
+and reuses the virtual environment on subsequent runs.
 
 ## Customization
 - Switch themes and wallpapers in **Settings**.
