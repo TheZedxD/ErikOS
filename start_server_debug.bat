@@ -23,8 +23,9 @@ for m in ("flask","PIL","psutil"):
         print("[FAIL] import", m, e)
 PY
 
-echo [RUN] Starting DRIVE\app.py ... >> "%DLOG%"
-"%PY_EXE%" DRIVE\app.py >> "%DLOG%" 2>&1
+echo [RUN] Starting DRIVE.app ... >> "%DLOG%"
+set PYTHONPATH=%CD%
+"%PY_EXE%" -m DRIVE.app >> "%DLOG%" 2>&1
 echo [EXIT %ERRORLEVEL%] >> "%DLOG%"
 echo See "%DLOG%" for details.
 pause
