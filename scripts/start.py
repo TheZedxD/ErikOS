@@ -72,13 +72,19 @@ def find_free_port(start: int = 8000) -> int:
 def start_backend(python: Path, port: int) -> subprocess.Popen[str]:
     env = os.environ.copy()
     env["FLASK_RUN_PORT"] = str(port)
-    cmd = [str(python), str(DRIVE_APP)]
+    # Ensure the project root is on PYTHONPATH so local packages like
+    # ``tools`` can be imported when the server starts.  Using ``-m`` also
+    # runs the application as a module, which makes relative imports more
+    # reliable across platforms.
+    env["PYTHONPATH"] = str(REPO_ROOT)
+    cmd = [str(python), "-m", "DRIVE.app"]
     return subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         env=env,
+        cwd=REPO_ROOT,
     )
 
 
