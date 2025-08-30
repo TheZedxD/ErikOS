@@ -34,8 +34,8 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, request, send_from_directory, g
 
 from tools.diagnostics import run_diagnostics
-from config import settings
-from __version__ import __version__
+from .config import settings
+from .__version__ import __version__
 
 BASE_DIR = settings.root_dir
 STATIC_DIR = BASE_DIR
@@ -247,7 +247,7 @@ def list_ollama_models():
     return jsonify(resp)
 
 
-@app.route("/api/ollama/history/<profile>")
+@app.get("/api/ollama/history/<profile>")
 def get_chat_history(profile: str):
     """Return stored chat history for the given profile."""
     profile = _safe_profile_name(profile)
@@ -336,6 +336,8 @@ def serve_static(filename: str):
     above.  If the file does not exist a 404 will be returned.
     """
     return send_from_directory(STATIC_DIR, filename)
+
+
 @app.route("/api/status")
 def status() -> "Response":
     """Return health information for readiness checks."""
