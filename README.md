@@ -24,6 +24,8 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 
 ## Installation
 
+On Python 3.13+, Pillow>=11 is required. The requirements file handles this automatically.
+
 Run the bundled start script. It will create a virtual environment,
 install dependencies and launch the server.
 
