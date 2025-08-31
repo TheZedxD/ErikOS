@@ -24,6 +24,11 @@ import venv
 import webbrowser
 from pathlib import Path
 
+try:  # optional dependency
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover - best effort
+    load_dotenv = None
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VENV_DIR = REPO_ROOT / ".venv"
 REQUIREMENTS = REPO_ROOT / "requirements.txt"
@@ -31,6 +36,12 @@ DRIVE_APP = REPO_ROOT / "DRIVE" / "app.py"
 LOG_DIR = REPO_ROOT / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / f"server-{_dt.date.today():%Y%m%d}.log"
+
+# Load environment variables from .env if python-dotenv is available
+if load_dotenv is not None:
+    dotenv_path = REPO_ROOT / ".env"
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path)
 
 
 def ensure_python() -> None:
@@ -54,7 +65,11 @@ def ensure_venv() -> None:
 def install_requirements(python: Path) -> None:
     if REQUIREMENTS.exists():
         cmd = [str(python), "-m", "pip", "install", "-r", str(REQUIREMENTS)]
-        subprocess.check_call(cmd)
+        try:
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as exc:
+            print(f"Failed to install requirements: {exc}", file=sys.stderr)
+            sys.exit(exc.returncode)
 
 
 def find_free_port(start: int = 8000) -> int:
@@ -69,23 +84,30 @@ def find_free_port(start: int = 8000) -> int:
                 return port
 
 
-def start_backend(python: Path, port: int) -> subprocess.Popen[str]:
+def start_backend(python: Path, host: str, port: int) -> subprocess.Popen[str]:
     env = os.environ.copy()
-    env["FLASK_RUN_PORT"] = str(port)
-    # Ensure the project root is on PYTHONPATH so local packages like
-    # ``tools`` can be imported when the server starts.  Using ``-m`` also
-    # runs the application as a module, which makes relative imports more
-    # reliable across platforms.
-    env["PYTHONPATH"] = str(REPO_ROOT)
+    env["PORT"] = str(port)
+    env["HOST"] = host
+    # Ensure the project root is on PYTHONPATH so local packages can be
+    # imported when the server starts.
+    existing = env.get("PYTHONPATH")
+    if existing:
+        env["PYTHONPATH"] = f"{REPO_ROOT}{os.pathsep}{existing}"
+    else:
+        env["PYTHONPATH"] = str(REPO_ROOT)
     cmd = [str(python), "-m", "DRIVE.app"]
-    return subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
-        cwd=REPO_ROOT,
-    )
+    try:
+        return subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            cwd=REPO_ROOT,
+        )
+    except Exception as exc:
+        print(f"Failed to start server: {exc}", file=sys.stderr)
+        raise
 
 
 def monitor_process(proc: subprocess.Popen[str], logger: logging.Logger) -> list[str]:
@@ -126,6 +148,8 @@ def wait_for_server(port: int, timeout: int = 30) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Launch ErikOS")
     parser.add_argument("--port", type=int, default=8000, help="preferred port")
+    parser.add_argument("--host", default="127.0.0.1", help="host interface")
+    parser.add_argument("--no-browser", action="store_true", help="do not open browser")
     args = parser.parse_args()
 
     ensure_python()
@@ -140,11 +164,15 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, handlers=[handler])
     logger = logging.getLogger("server")
 
-    proc = start_backend(py, port)
+    try:
+        proc = start_backend(py, args.host, port)
+    except Exception:
+        return 1
     tail = monitor_process(proc, logger)
 
     if wait_for_server(port):
-        webbrowser.open(f"http://localhost:{port}/index.html")
+        if not args.no_browser:
+            webbrowser.open(f"http://{args.host}:{port}/index.html")
     else:
         print("Server did not start in time", file=sys.stderr)
 

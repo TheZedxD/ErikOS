@@ -2,8 +2,8 @@
 
 ## Installation
 
-1. Optional: run `install.sh` (Linux) or `install.bat` (Windows) to create a virtual environment and install Python dependencies (`Flask`, `Pillow`, `psutil`).
-2. Start the backend with `start_server.sh` or `start_server.bat`.
+1. Optional: run `install.sh` (macOS/Linux) or `install.bat` (Windows) to create a virtual environment and install Python dependencies (`Flask`, `Pillow`, `psutil`).
+2. Start the backend with `start_server.sh`, `start_server.bat`, or the cross-platform launcher `python scripts/start.py --port 8000`.
 3. Open `http://localhost:8000/index.html` in a Chromium browser.
 
 ## Usage
