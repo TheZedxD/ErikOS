@@ -13,7 +13,9 @@ Dependencies:
     Pillow must be installed (`pip install pillow`).
 """
 
+import argparse
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -25,7 +27,7 @@ except ImportError as exc:
     ) from exc
 
 
-def make_transparent(path: Path) -> None:
+def make_transparent(path: Path, backup: bool = True) -> None:
     """Replace white background in a PNG with transparency.
 
     Args:
@@ -36,27 +38,37 @@ def make_transparent(path: Path) -> None:
         datas = img.getdata()
         new_data = []
         for pixel in datas:
-            # If pixel is pure white, make it transparent
             if pixel[0:3] == (255, 255, 255):
                 new_data.append((255, 255, 255, 0))
             else:
                 new_data.append(pixel)
         img.putdata(new_data)
+        if backup:
+            bak = path.with_suffix(path.suffix + ".bak")
+            if not bak.exists():
+                shutil.copy2(path, bak)
         img.save(path)
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: process_icons.py <folder>")
-        return
-    folder = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Process PNG icons")
+    parser.add_argument("folder", help="folder containing PNG icons")
+    parser.add_argument(
+        "--backup",
+        dest="backup",
+        action="store_false",
+        help="Disable backups",
+    )
+    args = parser.parse_args()
+
+    folder = Path(args.folder)
     if not folder.is_dir():
         print(f"The specified path '{folder}' is not a directory.")
         return
     for item in folder.iterdir():
         if item.suffix.lower() == ".png" and item.is_file():
             try:
-                make_transparent(item)
+                make_transparent(item, backup=args.backup)
                 print(f"Processed {item.name}")
             except Exception as exc:
                 print(f"Failed to process {item.name}: {exc}")

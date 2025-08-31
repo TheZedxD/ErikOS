@@ -30,8 +30,11 @@ from datetime import datetime
 from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
+import threading
+from io import StringIO
 
 from flask import Flask, jsonify, request, send_from_directory, g
+from werkzeug.utils import secure_filename
 
 from tools.diagnostics import run_diagnostics
 from .config import settings
@@ -149,6 +152,9 @@ def _load_state() -> dict[int, str]:
 
 # Whitelist of allowed shell commands for execute_command.
 ALLOWED_COMMANDS = set(settings.terminal_whitelist)
+
+# Registry for asynchronous command execution
+command_jobs: dict[str, dict[str, object]] = {}
 
 # Directory where chat histories are stored.  A JSON file is created for
 # each profile under this folder.
@@ -410,14 +416,15 @@ def upload_icon():
     """Upload a PNG icon to the icons directory."""
     file = request.files.get("file")
     if request.content_length and request.content_length > settings.max_upload_mb * 1024 * 1024:
-        return jsonify({"ok": False, "error": "File too large"}), 413
-    if not file or not file.filename.lower().endswith(".png") or file.mimetype != "image/png":
-        return jsonify({"ok": False, "error": "png only"}), 400
+        return json_error("File too large", 413)
+    if not file or file.mimetype != "image/png" or not file.filename.lower().endswith(".png"):
+        return json_error("png only")
     icon_dir = BASE_DIR / "icons"
     icon_dir.mkdir(parents=True, exist_ok=True)
-    dest = icon_dir / file.filename
+    filename = secure_filename(file.filename)
+    dest = icon_dir / filename
     file.save(dest)
-    return jsonify({"ok": True, "file": file.filename})
+    return jsonify({"ok": True, "file": filename})
 
 
 # ---------------------------------------------------------------------------
@@ -436,9 +443,17 @@ def safe_join(rel_path: str) -> Path:
 
     Raises ``ValueError`` if the resulting path is outside ``FILE_BASE``."""
     target = (FILE_BASE / rel_path).resolve()
-    if not target.is_relative_to(FILE_BASE):
-        raise ValueError("Path escapes base directory")
+    try:
+        if not target.is_relative_to(FILE_BASE):  # type: ignore[attr-defined]
+            raise ValueError("Path escapes base directory")
+    except AttributeError:  # Python <3.9 fallback
+        if os.path.commonpath([FILE_BASE, target]) != str(FILE_BASE):
+            raise ValueError("Path escapes base directory")
     return target
+
+
+def json_error(message: str, status: int = 400):
+    return jsonify({"ok": False, "error": message}), status
 
 
 @app.route("/api/list-directory")
@@ -448,7 +463,7 @@ def list_directory():
     try:
         path = safe_join(rel)
         if not path.exists() or not path.is_dir():
-            return jsonify({"ok": False, "error": "Not a directory"}), 400
+            return json_error("Not a directory")
         items = []
         for entry in os.scandir(path):
             info = entry.stat()
@@ -463,9 +478,9 @@ def list_directory():
             )
         return jsonify({"items": items, "path": rel})
     except ValueError:
-        return jsonify({"ok": False, "error": "Invalid path"}), 400
+        return json_error("Invalid path")
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        return json_error(str(exc), 500)
 
 
 @app.route("/api/create-folder", methods=["POST"])
@@ -474,17 +489,17 @@ def create_folder():
     rel = data.get("path", "")
     name = data.get("name")
     if not name:
-        return jsonify({"ok": False, "error": "name is required"}), 400
+        return json_error("name is required")
     try:
         path = safe_join(rel) / name
         path.mkdir(parents=False, exist_ok=False)
         return jsonify({"success": True})
     except FileExistsError:
-        return jsonify({"ok": False, "error": "Folder exists"}), 400
+        return json_error("Folder exists")
     except ValueError:
-        return jsonify({"ok": False, "error": "Invalid path"}), 400
+        return json_error("Invalid path")
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        return json_error(str(exc), 500)
 
 
 @app.route("/api/rename", methods=["POST"])
@@ -493,18 +508,18 @@ def rename_item():
     rel = data.get("path")
     new_name = data.get("new_name")
     if not rel or not new_name:
-        return jsonify({"ok": False, "error": "path and new_name required"}), 400
+        return json_error("path and new_name required")
     try:
         src = safe_join(rel)
         dst = src.parent / new_name
         src.rename(dst)
         return jsonify({"success": True})
     except FileNotFoundError:
-        return jsonify({"ok": False, "error": "Not found"}), 404
+        return json_error("Not found", 404)
     except ValueError:
-        return jsonify({"ok": False, "error": "Invalid path"}), 400
+        return json_error("Invalid path")
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        return json_error(str(exc), 500)
 
 
 @app.route("/api/delete", methods=["POST"])
@@ -512,7 +527,7 @@ def delete_item():
     data = request.get_json(silent=True) or {}
     rel = data.get("path")
     if not rel:
-        return jsonify({"ok": False, "error": "path is required"}), 400
+        return json_error("path is required")
     try:
         target = safe_join(rel)
         if target.is_dir():
@@ -521,14 +536,13 @@ def delete_item():
             target.unlink()
         return jsonify({"success": True})
     except FileNotFoundError:
-        return jsonify({"ok": False, "error": "Not found"}), 404
+        return json_error("Not found", 404)
     except OSError as exc:
-        # e.g. directory not empty
-        return jsonify({"ok": False, "error": str(exc)}), 400
+        return json_error(str(exc))
     except ValueError:
-        return jsonify({"ok": False, "error": "Invalid path"}), 400
+        return json_error("Invalid path")
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        return json_error(str(exc), 500)
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -621,37 +635,57 @@ def list_scripts():
 
 @app.route("/api/execute-command", methods=["POST"])
 def execute_command():
-    """Execute a whitelisted shell command and return its output.
+    """Execute a whitelisted shell command asynchronously.
 
-    The request body should contain a JSON object with a "command"
-    field specifying the full command line.  The first token of the
-    command must appear in ALLOWED_COMMANDS or the request will be
-    rejected.  The command is executed synchronously and both
-    standard output and standard error are returned in the response.
+    Returns a job ID immediately which can be polled via
+    ``/api/command-status/<job_id>``.
     """
     data = request.get_json(silent=True) or {}
     cmd_line = data.get("command")
     if not cmd_line:
-        return jsonify({"ok": False, "error": "command is required"}), 400
+        return json_error("command is required")
     try:
         tokens = shlex.split(cmd_line)
     except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
+        return json_error(str(exc))
     if not tokens:
-        return jsonify({"ok": False, "error": "Empty command"}), 400
+        return json_error("Empty command")
     if tokens[0] not in ALLOWED_COMMANDS:
-        return jsonify({"ok": False, "error": "Command not permitted"}), 400
-    try:
-        result = subprocess.run(tokens, capture_output=True, text=True, timeout=15)
-        return jsonify(
-            {
-                "command": cmd_line,
-                "returncode": result.returncode,
-                "output": (result.stdout + result.stderr).strip(),
-            }
-        )
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        return json_error("Command not permitted")
+
+    job_id = uuid.uuid4().hex
+    buffer = StringIO()
+
+    def _run():
+        try:
+            proc = subprocess.Popen(tokens, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            out, err = proc.communicate()
+            buffer.write((out or "") + (err or ""))
+            command_jobs[job_id]["returncode"] = proc.returncode
+        except Exception as exc:  # pragma: no cover - propagate to job
+            buffer.write(str(exc))
+        finally:
+            command_jobs[job_id]["status"] = "finished"
+            command_jobs[job_id]["output"] = buffer.getvalue().strip()
+
+    command_jobs[job_id] = {"status": "running"}
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/command-status/<job_id>")
+def command_status(job_id: str):
+    job = command_jobs.get(job_id)
+    if not job:
+        return json_error("Unknown job ID", 404)
+    if job.get("status") == "finished":
+        return jsonify({
+            "status": "finished",
+            "returncode": job.get("returncode", 0),
+            "output": job.get("output", ""),
+        })
+    return jsonify({"status": "running"})
 
 
 @app.route("/api/diagnostics/run")
