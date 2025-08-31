@@ -33,10 +33,10 @@ from logging.handlers import RotatingFileHandler
 import threading
 from io import StringIO
 
-from flask import Flask, jsonify, request, send_from_directory, g, Response, stream_with_context
+from flask import Flask, jsonify, request, send_from_directory, g
 from werkzeug.utils import secure_filename
 
-from .ollama_client import OllamaClient
+import requests
 
 from tools.diagnostics import run_diagnostics
 from .config import settings
@@ -72,8 +72,6 @@ logger.addHandler(handler)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 app.logger = logger
-
-ollama_client = OllamaClient()
 
 
 @app.before_request
@@ -185,54 +183,51 @@ def load_chat_history(profile: str) -> list[dict]:
     return []
 
 
-def _scan_model_dirs() -> list[str]:
-    """Return model names by scanning known model directories."""
-    dirs = []
-    env_dir = os.environ.get("OLLAMA_MODELS")
-    if env_dir:
-        dirs.append(Path(env_dir))
-    dirs.extend(
-        [
-            Path.home() / ".ollama" / "models",
-            Path("/usr/share/ollama/models"),
-        ]
-    )
-    models: set[str] = set()
-    for d in dirs:
-        if d.is_dir():
-            for f in d.rglob("*"):
-                if f.suffix in {".bin", ".gguf"}:
-                    models.add(f.stem)
-    return sorted(models)
-
-
 def detect_ollama_models() -> tuple[list[str], str | None]:
-    """Detect installed Ollama models returning (models, error)."""
+    """Detect installed Ollama models via HTTP API."""
     models: list[str] = []
     error: str | None = None
-    try:
-        models = ollama_client.list_models()
-    except Exception as exc:  # pragma: no cover - network
-        error = str(exc)
-        app.logger.warning("Failed to query Ollama server: %s", exc)
 
-    if not models:
-        models = _scan_model_dirs()
+    try:
+        # Call Ollama API to list models
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if "models" in data:
+                models = [model["name"] for model in data["models"]]
+        else:
+            error = f"Ollama API returned status {response.status_code}"
+    except requests.exceptions.ConnectionError:
+        error = "Cannot connect to Ollama. Make sure Ollama is running (ollama serve)"
+    except requests.exceptions.Timeout:
+        error = "Ollama request timed out"
+    except Exception as exc:
+        error = str(exc)
+        app.logger.exception("Error connecting to Ollama API")
+
     if not models and error is None:
-        error = "No Ollama models detected"
+        error = "No models found. Install models using: ollama pull llama3.2:3b"
+
     return models, error
 
 
 @app.route("/api/ollama/models")
 def list_ollama_models():
-    """Return a list of available models from the local Ollama installation."""
+    """Return a list of available models from Ollama."""
     models, error = detect_ollama_models()
-    if not models:
+
+    if error and not models:
         return jsonify({"ok": False, "models": [], "error": error}), 500
-    resp = {"models": models}
+
+    response = {"ok": True, "models": models}
     if error:
-        resp["warning"] = error
-    return jsonify(resp)
+        response["warning"] = error
+
+    # Set default models if none selected
+    response["defaultText"] = "llama3.2:3b" if "llama3.2:3b" in models else (models[0] if models else None)
+    response["defaultImage"] = "llava:7b" if "llava:7b" in models else None
+
+    return jsonify(response)
 
 
 @app.get("/api/ollama/history/<profile>")
@@ -243,65 +238,100 @@ def get_chat_history(profile: str):
     return jsonify({"history": history})
 
 
-@app.route("/api/ollama", methods=["POST"])
 @app.route("/api/ollama/chat", methods=["POST"])
 def run_ollama():
-    """Run a prompt against the specified model via the Ollama HTTP API.
-
-    Expects JSON with ``model``, ``prompt`` and optional ``image`` (base64).  The
-    request may also include ``history`` (list of messages) and ``profile`` to
-    persist conversation history to disk.  The response is streamed back as
-    newline-delimited JSON chunks mirroring the Ollama API.
-    """
+    """Run a prompt against Ollama via HTTP API."""
     data = request.get_json(silent=True) or {}
-    prompt = data.get("prompt") or ""
-    image_b64 = data.get("image")
-    history = data.get("history") or []
-    profile = data.get("profile")
     model = data.get("model")
-    if not model:
-        model = "llava:7b" if image_b64 else "llama3.2:3b"
+    prompt = data.get("prompt", "")
+    image_b64 = data.get("image")
+    history = data.get("history", [])
+    profile = data.get("profile")
+
     if not prompt and not image_b64:
         return jsonify({"ok": False, "error": "prompt is required"}), 400
 
+    # Get available models and set defaults
+    models, _ = detect_ollama_models()
+
+    # If no model specified, use defaults
+    if not model:
+        if image_b64:
+            model = "llava:7b" if "llava:7b" in models else "llava"
+        else:
+            model = "llama3.2:3b" if "llama3.2:3b" in models else (models[0] if models else "llama3.2")
+
+    # Prepare the request to Ollama API
+    ollama_url = "http://localhost:11434/api/generate"
+
+    # Build the request payload
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False  # Always false for simplicity
+    }
+
+    # Add image if provided (for multimodal models)
+    if image_b64:
+        payload["images"] = [image_b64]
+
+    # Add context from history if available
+    if history:
+        context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history[-5:]])  # Last 5 messages
+        payload["prompt"] = f"{context}\nuser: {prompt}\nassistant:"
+
     try:
-        stream_resp = ollama_client.generate(
-            model,
-            prompt,
-            images=[image_b64] if image_b64 else None,
-            stream=True,
-        )
-    except Exception as exc:  # pragma: no cover - network
-        app.logger.exception("Error contacting Ollama server")
+        # Make request to Ollama
+        response = requests.post(ollama_url, json=payload, timeout=60)
+
+        if response.status_code != 200:
+            error_msg = response.text or f"Ollama returned status {response.status_code}"
+            return jsonify({"ok": False, "error": error_msg}), 500
+
+        # Parse response
+        result = response.json()
+        response_text = result.get("response", "")
+
+        # Update conversation history
+        if history:
+            history.append({"role": "user", "content": prompt})
+            history.append({"role": "assistant", "content": response_text})
+        else:
+            history = [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": response_text}
+            ]
+
+        # Save to profile if provided
+        if profile:
+            try:
+                prof = _safe_profile_name(profile)
+                path = CHAT_HISTORY_DIR / f"{prof}.json"
+                with path.open("w", encoding="utf-8") as fh:
+                    json.dump(history, fh)
+            except Exception:
+                app.logger.exception("Failed writing chat history for %s", profile)
+
+        return jsonify({
+            "ok": True,
+            "response": response_text,
+            "model": model,
+            "history": history
+        })
+
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "ok": False,
+            "error": "Cannot connect to Ollama. Please ensure Ollama is running."
+        }), 500
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "ok": False,
+            "error": "Request timed out. The model may be loading or the prompt is too complex."
+        }), 500
+    except Exception as exc:
+        app.logger.exception("Error calling Ollama API")
         return jsonify({"ok": False, "error": str(exc)}), 500
-
-    def generate():
-        full_response = ""
-        try:
-            for text in stream_resp:
-                text = text.strip()
-                if not text:
-                    continue
-                yield text + "\n"
-                try:
-                    chunk = json.loads(text)
-                    full_response += chunk.get("response", "")
-                except Exception:
-                    pass
-        finally:
-            if full_response:
-                convo = list(history) if isinstance(history, list) else []
-                convo.append({"role": "assistant", "content": full_response})
-                if profile:
-                    try:
-                        prof = _safe_profile_name(profile)
-                        path = CHAT_HISTORY_DIR / f"{prof}.json"
-                        with path.open("w", encoding="utf-8") as fh:
-                            json.dump(convo, fh)
-                    except Exception:
-                        app.logger.exception("Failed writing chat history for %s", profile)
-
-    return Response(stream_with_context(generate()), mimetype="application/x-ndjson")
 
 
 @app.route("/")
