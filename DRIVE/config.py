@@ -23,6 +23,25 @@ def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _root_dir() -> Path:
+    """Determine a valid application root directory.
+
+    If ``ROOT_DIR`` is set in the environment use it when it points to an
+    existing path.  Otherwise fall back to the repository base directory.  This
+    avoids issues on Windows where an absolute path from another environment
+    may not exist.
+    """
+
+    candidate = Path(os.getenv("ROOT_DIR", BASE_DIR))
+    if not candidate.is_absolute():
+        candidate = (BASE_DIR / candidate).resolve()
+    else:
+        candidate = candidate.resolve()
+    if not candidate.exists():
+        candidate = BASE_DIR
+    return candidate
+
+
 @dataclass
 class Settings:
     host: str = os.getenv("HOST", "127.0.0.1")
@@ -35,7 +54,7 @@ class Settings:
             )
         )
     )
-    root_dir: Path = Path(os.getenv("ROOT_DIR", BASE_DIR)).resolve()
+    root_dir: Path = field(default_factory=_root_dir)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     terminal_whitelist: list[str] = field(
         default_factory=lambda: _split_csv(
