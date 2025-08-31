@@ -194,10 +194,13 @@ class WindowManager {
     const minimiseBtn = document.createElement("button");
     minimiseBtn.textContent = "_";
     minimiseBtn.title = "Minimise";
+    const maximiseBtn = document.createElement("button");
+    maximiseBtn.textContent = "□";
+    maximiseBtn.title = "Maximise";
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "×";
     closeBtn.title = "Close";
-    controls.append(minimiseBtn, closeBtn);
+    controls.append(minimiseBtn, maximiseBtn, closeBtn);
     titleBar.append(titleSpan, controls);
     win.append(titleBar);
 
@@ -253,6 +256,9 @@ class WindowManager {
       element: win,
       taskItem,
       minimised: false,
+      maximised: false,
+      prevRect: null,
+      maxBtn: maximiseBtn,
     });
 
     // Bring to front when clicked
@@ -264,16 +270,24 @@ class WindowManager {
       e.stopPropagation();
       this.minimise(id);
     });
+    maximiseBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.toggleMaximise(id);
+    });
     closeBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.closeWindow(id);
     });
+
+    // Double-click title bar to toggle maximise/restore
+    titleBar.addEventListener("dblclick", () => this.toggleMaximise(id));
 
     // Dragging
     this._makeDraggable(win, titleBar);
     // Resizing: optional simple bottom‑right handle
     this._makeResizable(win);
 
+    this.bringToFront(id);
     return id;
   }
 
@@ -290,6 +304,16 @@ class WindowManager {
       .querySelectorAll(".taskbar-item")
       .forEach((item) => item.classList.remove("active"));
     winInfo.taskItem.classList.add("active");
+    // Toggle active/inactive classes
+    this.windows.forEach((info, wid) => {
+      if (wid === id) {
+        info.element.classList.remove("inactive");
+        info.element.classList.add("active");
+      } else {
+        info.element.classList.remove("active");
+        info.element.classList.add("inactive");
+      }
+    });
   }
 
   /**
@@ -325,6 +349,55 @@ class WindowManager {
     } else {
       this.minimise(id);
     }
+  }
+
+  toggleMaximise(id) {
+    const winInfo = this.windows.get(id);
+    if (!winInfo) return;
+    this.bringToFront(id);
+    if (winInfo.maximised) {
+      this.restoreWindow(id);
+    } else {
+      this.maximise(id);
+    }
+  }
+
+  maximise(id) {
+    const winInfo = this.windows.get(id);
+    if (!winInfo || winInfo.maximised) return;
+    const winEl = winInfo.element;
+    winInfo.prevRect = {
+      left: winEl.offsetLeft,
+      top: winEl.offsetTop,
+      width: winEl.offsetWidth,
+      height: winEl.offsetHeight,
+    };
+    const deskRect = this.desktop.getBoundingClientRect();
+    winEl.style.left = "0px";
+    winEl.style.top = "0px";
+    winEl.style.width = `${deskRect.width}px`;
+    winEl.style.height = `${deskRect.height}px`;
+    winInfo.maximised = true;
+    winEl.classList.add("maximised");
+    winInfo.maxBtn.textContent = "❐";
+    winInfo.maxBtn.title = "Restore";
+  }
+
+  restoreWindow(id) {
+    const winInfo = this.windows.get(id);
+    if (!winInfo || !winInfo.maximised) return;
+    const rect = winInfo.prevRect;
+    const winEl = winInfo.element;
+    if (rect) {
+      winEl.style.left = `${rect.left}px`;
+      winEl.style.top = `${rect.top}px`;
+      winEl.style.width = `${rect.width}px`;
+      winEl.style.height = `${rect.height}px`;
+    }
+    winInfo.maximised = false;
+    winEl.classList.remove("maximised");
+    winInfo.maxBtn.textContent = "□";
+    winInfo.maxBtn.title = "Maximise";
   }
 
   /**
@@ -363,6 +436,8 @@ class WindowManager {
     handle.addEventListener("pointerdown", (e) => {
       // Only left button
       if (e.button !== 0) return;
+      const info = this.windows.get(winEl.dataset.id);
+      if (info && info.maximised) return;
       this.bringToFront(winEl.dataset.id);
       offsetX = e.clientX - winEl.offsetLeft;
       offsetY = e.clientY - winEl.offsetTop;
@@ -377,22 +452,93 @@ class WindowManager {
    * similarly.
    */
   _makeResizable(winEl) {
-    const handle = document.createElement("div");
-    handle.style.position = "absolute";
-    handle.style.right = "0";
-    handle.style.bottom = "0";
-    handle.style.width = "16px";
-    handle.style.height = "16px";
-    handle.style.cursor = "nwse-resize";
-    handle.style.background = "transparent";
-    winEl.append(handle);
-    let startX, startY, startW, startH;
+    const directions = [
+      { dir: "n", cursor: "n-resize", top: "-4px", left: "0", width: "100%", height: "8px" },
+      { dir: "s", cursor: "s-resize", bottom: "-4px", left: "0", width: "100%", height: "8px" },
+      { dir: "e", cursor: "e-resize", top: "0", right: "-4px", width: "8px", height: "100%" },
+      { dir: "w", cursor: "w-resize", top: "0", left: "-4px", width: "8px", height: "100%" },
+      { dir: "ne", cursor: "ne-resize", top: "-4px", right: "-4px", width: "8px", height: "8px" },
+      { dir: "nw", cursor: "nw-resize", top: "-4px", left: "-4px", width: "8px", height: "8px" },
+      { dir: "se", cursor: "se-resize", bottom: "-4px", right: "-4px", width: "8px", height: "8px" },
+      { dir: "sw", cursor: "sw-resize", bottom: "-4px", left: "-4px", width: "8px", height: "8px" },
+    ];
+    const handles = [];
+    directions.forEach((cfg) => {
+      const h = document.createElement("div");
+      h.dataset.dir = cfg.dir;
+      Object.assign(h.style, {
+        position: "absolute",
+        cursor: cfg.cursor,
+        background: "transparent",
+        ...("top" in cfg ? { top: cfg.top } : {}),
+        ...("bottom" in cfg ? { bottom: cfg.bottom } : {}),
+        ...("left" in cfg ? { left: cfg.left } : {}),
+        ...("right" in cfg ? { right: cfg.right } : {}),
+        width: cfg.width,
+        height: cfg.height,
+      });
+      winEl.append(h);
+      handles.push(h);
+    });
+
+    let startX, startY, startW, startH, startL, startT, dir;
     const onPointerMove = (e) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      let newLeft = startL;
+      let newTop = startT;
+      let newW = startW;
+      let newH = startH;
+      if (dir.includes("e")) newW = startW + dx;
+      if (dir.includes("s")) newH = startH + dy;
+      if (dir.includes("w")) {
+        newW = startW - dx;
+        newLeft = startL + dx;
+      }
+      if (dir.includes("n")) {
+        newH = startH - dy;
+        newTop = startT + dy;
+      }
+      // Constrain to minimum size
+      if (newW < 200) {
+        if (dir.includes("w")) newLeft -= 200 - newW;
+        newW = 200;
+      }
+      if (newH < 100) {
+        if (dir.includes("n")) newTop -= 100 - newH;
+        newH = 100;
+      }
       const deskRect = this.desktop.getBoundingClientRect();
-      const maxW = deskRect.width - winEl.offsetLeft;
-      const maxH = deskRect.height - winEl.offsetTop;
-      const newW = Math.min(Math.max(200, startW + (e.clientX - startX)), maxW);
-      const newH = Math.min(Math.max(100, startH + (e.clientY - startY)), maxH);
+      // Edge snapping
+      const snap = 10;
+      if (newLeft < snap) {
+        newW += newLeft;
+        newLeft = 0;
+      }
+      if (newTop < snap) {
+        newH += newTop;
+        newTop = 0;
+      }
+      if (deskRect.width - (newLeft + newW) < snap) {
+        newW = deskRect.width - newLeft;
+      }
+      if (deskRect.height - (newTop + newH) < snap) {
+        newH = deskRect.height - newTop;
+      }
+      // Limit to desktop bounds
+      if (newLeft < 0) {
+        newW += newLeft;
+        newLeft = 0;
+      }
+      if (newTop < 0) {
+        newH += newTop;
+        newTop = 0;
+      }
+      if (newLeft + newW > deskRect.width) newW = deskRect.width - newLeft;
+      if (newTop + newH > deskRect.height) newH = deskRect.height - newTop;
+
+      winEl.style.left = `${newLeft}px`;
+      winEl.style.top = `${newTop}px`;
       winEl.style.width = `${newW}px`;
       winEl.style.height = `${newH}px`;
       const resizeEvent = new CustomEvent("resized", {
@@ -402,17 +548,26 @@ class WindowManager {
       winEl.dispatchEvent(resizeEvent);
     };
     const onPointerUp = () => {
+      winEl.classList.remove("resizing");
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
     };
-    handle.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      startX = e.clientX;
-      startY = e.clientY;
-      startW = winEl.offsetWidth;
-      startH = winEl.offsetHeight;
-      document.addEventListener("pointermove", onPointerMove);
-      document.addEventListener("pointerup", onPointerUp);
+    handles.forEach((h) => {
+      h.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        const info = this.windows.get(winEl.dataset.id);
+        if (info && info.maximised) return;
+        dir = h.dataset.dir;
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = winEl.offsetWidth;
+        startH = winEl.offsetHeight;
+        startL = winEl.offsetLeft;
+        startT = winEl.offsetTop;
+        winEl.classList.add("resizing");
+        document.addEventListener("pointermove", onPointerMove);
+        document.addEventListener("pointerup", onPointerUp);
+      });
     });
   }
 }

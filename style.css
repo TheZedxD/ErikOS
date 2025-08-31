@@ -11,18 +11,20 @@
 
 /* Base variables for the default (classic) theme */
 :root {
-  --desktop-bg: #008080;
-  --taskbar-bg: #c0c0c0;
+  --desktop-bg: #008080; /* Teal desktop */
+  --taskbar-bg: #c0c0c0; /* Silver grey */
   --taskbar-border-light: #ffffff;
-  --taskbar-border-dark: #404040;
-  --button-bg: #c0c0c0;
-  --btn-border-light: #ffffff;
-  --btn-border-dark: #404040;
-  --window-bg: #c0c0c0;
+  --taskbar-border-dark: #000000;
+  --window-bg: #c0c0c0; /* Silver grey */
+  --button-bg: #c0c0c0; /* Silver grey */
+  --title-gradient-light: #000080; /* Navy blue active */
+  --title-gradient-dark: #1084d0; /* Gradient end */
+  --inactive-title: #808080; /* Grey for inactive windows */
+  --btn-border-light: #ffffff; /* White highlight */
+  --btn-border-dark: #000000; /* Black shadow */
+  --btn-border-grey: #808080; /* Grey middle border */
   --window-border-light: #ffffff;
-  --window-border-dark: #404040;
-  --title-gradient-light: #000080;
-  --title-gradient-dark: #000060;
+  --window-border-dark: #000000;
   --icon-text: #000000;
   --selection-bg: #000080;
   --font-family: "MS Sans Serif", sans-serif;
@@ -165,6 +167,21 @@
 /* Reset and base styles */
 * {
   box-sizing: border-box;
+}
+
+/* Classic 3D border for buttons and taskbar items */
+button,
+.taskbar-item,
+#system-clock,
+#system-tray img,
+.link-tree li button {
+  background: var(--button-bg);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
+  box-shadow: inset 1px 1px 0 var(--btn-border-grey),
+    inset -1px -1px 0 var(--btn-border-grey);
 }
 
 html,
@@ -344,12 +361,21 @@ body {
   min-width: 200px;
   min-height: 150px;
   background: var(--window-bg);
-  border: 2px solid var(--window-border-dark);
+  border-top: 2px solid var(--btn-border-light);
+  border-left: 2px solid var(--btn-border-light);
+  border-right: 2px solid var(--btn-border-dark);
+  border-bottom: 2px solid var(--btn-border-dark);
   box-shadow:
-    0 0 0 1px var(--window-border-light) inset,
-    0 0 0 2px var(--window-border-dark) inset;
+    inset 1px 1px 0 var(--btn-border-grey),
+    inset -1px -1px 0 var(--btn-border-grey);
   display: flex;
   flex-direction: column;
+}
+
+/* Dotted outline during resize */
+.window.resizing {
+  outline: 1px dotted var(--btn-border-dark);
+  outline-offset: -2px;
 }
 
 /* Window title bar */
@@ -366,6 +392,12 @@ body {
   color: #ffffff;
   user-select: none;
   cursor: move;
+}
+
+/* Inactive window title bar */
+.window.inactive .title-bar {
+  background: linear-gradient(to bottom, var(--window-bg), var(--inactive-title));
+  color: #000;
 }
 
 .window .title-bar .title {
