@@ -4119,29 +4119,80 @@ function openChat() {
 // ------------------------------------------------------------
 function openCrypto() {
   addLog("Crypto Portfolio opened");
+
   const container = document.createElement("div");
-  container.style.display = "flex";
-  container.style.flexDirection = "column";
-  container.style.height = "100%";
+  container.style.cssText =
+    "display:flex; flex-direction:column; height:100%; padding:8px;";
 
-  const totalDiv = document.createElement("div");
-  totalDiv.textContent = "Total: $0";
-  totalDiv.style.margin = "4px";
+  const totalPanel = document.createElement("div");
+  totalPanel.style.cssText = `
+    background: #000;
+    color: #0f0;
+    font-family: "Courier New", monospace;
+    font-size: 32px;
+    text-align: center;
+    padding: 16px;
+    margin-bottom: 8px;
+    border: 2px inset var(--window-border-dark);
+  `;
+  totalPanel.textContent = "TOTAL: $0.00";
 
-  const list = document.createElement("div");
-  list.style.flex = "1";
-  list.style.overflowY = "auto";
+  const holdingsPanel = document.createElement("div");
+  holdingsPanel.style.cssText = `
+    flex: 1;
+    border: 2px solid;
+    border-color: var(--window-border-dark) var(--window-border-light) var(--window-border-light) var(--window-border-dark);
+    background: var(--window-bg);
+    overflow-y: auto;
+  `;
 
-  const btnBar = document.createElement("div");
-  btnBar.style.display = "flex";
-  btnBar.style.gap = "4px";
+  const header = document.createElement("div");
+  header.style.cssText = `
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 60px;
+    padding: 4px;
+    background: var(--taskbar-bg);
+    border-bottom: 1px solid var(--window-border-dark);
+    font-weight: bold;
+  `;
+  header.innerHTML = `
+    <span>Coin</span>
+    <span style="text-align:right">Amount</span>
+    <span style="text-align:right">Price</span>
+    <span style="text-align:right">Value</span>
+    <span></span>
+  `;
+  holdingsPanel.append(header);
+
+  const holdingsList = document.createElement("div");
+  holdingsList.style.cssText = "padding: 4px;";
+  holdingsPanel.append(holdingsList);
+
+  const controlPanel = document.createElement("div");
+  controlPanel.style.cssText = `
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    border-top: 2px solid var(--window-border-light);
+    justify-content: center;
+  `;
+
   const addBtn = document.createElement("button");
-  addBtn.textContent = "Add coin";
-  const refreshBtn = document.createElement("button");
-  refreshBtn.textContent = "Refresh prices";
-  btnBar.append(addBtn, refreshBtn);
+  addBtn.textContent = "📈 Add Coin";
+  addBtn.style.cssText = `
+    padding: 4px 12px;
+    background: var(--button-bg);
+    border: 2px solid;
+    border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
+  `;
 
-  container.append(totalDiv, list, btnBar);
+  const refreshBtn = document.createElement("button");
+  refreshBtn.textContent = "🔄 Refresh Prices";
+  refreshBtn.style.cssText = addBtn.style.cssText;
+
+  controlPanel.append(addBtn, refreshBtn);
+  container.append(totalPanel, holdingsPanel, controlPanel);
+
   windowManager.createWindow("crypto", "Crypto Portfolio", container);
 
   const portfolio =
@@ -4157,28 +4208,55 @@ function openCrypto() {
     return await resp.json();
   }
 
+  function renderHoldings(prices) {
+    holdingsList.innerHTML = "";
+    let total = 0;
+
+    portfolio.forEach(({ id, amount }, idx) => {
+      const price = prices[id]?.usd || 0;
+      const value = price * amount;
+      total += value;
+
+      const row = document.createElement("div");
+      row.style.cssText = `
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr 60px;
+        padding: 4px;
+        border-bottom: 1px solid #e0e0e0;
+        align-items: center;
+      `;
+
+      row.innerHTML = `
+        <span style="font-weight:bold">${id.toUpperCase()}</span>
+        <span style="text-align:right">${amount.toFixed(4)}</span>
+        <span style="text-align:right">$${price.toFixed(2)}</span>
+        <span style="text-align:right; font-weight:bold">$${value.toFixed(2)}</span>
+      `;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.textContent = "Remove";
+      removeBtn.style.cssText = "padding: 2px 6px; font-size: 11px;";
+      removeBtn.onclick = () => {
+        portfolio.splice(idx, 1);
+        if (currentUser) {
+          currentUser.portfolio = portfolio;
+          saveProfiles(profiles);
+        }
+        refresh();
+      };
+
+      row.append(removeBtn);
+      holdingsList.append(row);
+    });
+
+    totalPanel.textContent = `TOTAL: $${total.toFixed(2)}`;
+    totalPanel.style.animation = "pulse 0.5s";
+  }
+
   async function refresh() {
-    list.innerHTML = "";
-    if (!portfolio.length) {
-      totalDiv.textContent = "Total: $0";
-      return;
-    }
-    try {
-      const ids = portfolio.map((c) => c.id);
-      const prices = await fetchPrices(ids);
-      let total = 0;
-      portfolio.forEach(({ id, amount }) => {
-        const price = prices[id] ? prices[id].usd : 0;
-        const value = price * amount;
-        total += value;
-        const row = document.createElement("div");
-        row.textContent = `${id}: ${amount} = $${value.toFixed(2)}`;
-        list.append(row);
-      });
-      totalDiv.textContent = "Total: $" + total.toFixed(2);
-    } catch (err) {
-      totalDiv.textContent = "Failed to fetch prices";
-    }
+    const ids = portfolio.map((c) => c.id);
+    const prices = await fetchPrices(ids);
+    renderHoldings(prices);
   }
 
   addBtn.addEventListener("click", () => {
