@@ -44,6 +44,14 @@ with the Python script:
 python scripts/start.py --port 8000
 ```
 
+## Testing
+
+After installing, run the test suite with:
+
+```bash
+./run_tests.sh
+```
+
 ## Customization
 - Switch themes and wallpapers in **Settings**.
 - Use the **Icon Manager** to show/hide desktop icons or change their graphics.
