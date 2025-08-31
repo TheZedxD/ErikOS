@@ -156,11 +156,6 @@
   margin-left: 4px;
   padding: 0 4px;
   font-size: 12px;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
 }
 
@@ -169,19 +164,40 @@
   box-sizing: border-box;
 }
 
-/* Classic 3D border for buttons and taskbar items */
+/* Classic 3D styling for buttons and similar controls */
 button,
 .taskbar-item,
 #system-clock,
 #system-tray img,
 .link-tree li button {
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
-  box-shadow: inset 1px 1px 0 var(--btn-border-grey),
-    inset -1px -1px 0 var(--btn-border-grey);
+  background: #c0c0c0;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  padding: 2px 12px;
+  font-family: "MS Sans Serif", Tahoma, sans-serif;
+  font-size: 11px;
+}
+
+button:active,
+.taskbar-item:active,
+#system-clock:active,
+#system-tray img:active,
+.link-tree li button:active {
+  border-color: #000000 #ffffff #ffffff #000000;
+  padding: 3px 11px 1px 13px;
+}
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  font-family: "MS Sans Serif", Tahoma, sans-serif;
+  font-size: 11px;
+  padding: 2px;
 }
 
 html,
@@ -239,11 +255,6 @@ body {
   justify-content: center;
   font-size: 14px;
   color: var(--icon-text);
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
 }
 
 /* System tray container */
@@ -260,11 +271,6 @@ body {
   width: 20px;
   height: 20px;
   cursor: pointer;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   padding: 1px;
 }
 
@@ -310,12 +316,6 @@ body {
   height: 100%;
   margin: 0 4px;
   font-size: 14px;
-  background: var(--button-bg);
-  border: none;
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
   outline: none;
 }
@@ -337,21 +337,14 @@ body {
   padding: 0 12px;
   margin-right: 4px;
   height: 70%;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
   font-size: 13px;
   white-space: nowrap;
 }
 
 .taskbar-item.active {
-  border-top: 2px solid var(--btn-border-dark);
-  border-left: 2px solid var(--btn-border-dark);
-  border-right: 2px solid var(--btn-border-light);
-  border-bottom: 2px solid var(--btn-border-light);
+  border-color: #000000 #ffffff #ffffff #000000;
+  padding: 3px 11px 1px 13px;
 }
 
 /* Generic window container */
@@ -384,11 +377,7 @@ body {
   display: flex;
   align-items: center;
   padding: 0 6px;
-  background: linear-gradient(
-    to bottom,
-    var(--title-gradient-light),
-    var(--title-gradient-dark)
-  );
+  background: var(--title-gradient-dark);
   color: #ffffff;
   user-select: none;
   cursor: move;
@@ -396,7 +385,7 @@ body {
 
 /* Inactive window title bar */
 .window.inactive .title-bar {
-  background: linear-gradient(to bottom, var(--window-bg), var(--inactive-title));
+  background: var(--inactive-title);
   color: #000;
 }
 
@@ -418,12 +407,6 @@ body {
   line-height: 16px;
   text-align: center;
   font-size: 10px;
-  border: none;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
 }
 
@@ -501,17 +484,14 @@ body {
 
 .settings-tabs button {
   padding: 2px 6px;
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
-  background: var(--button-bg);
   cursor: pointer;
 }
 
 .settings-tabs button.active {
   background: var(--selection-bg);
   color: var(--window-bg);
+  border-color: #000000 #ffffff #ffffff #000000;
+  padding: 3px 5px 1px 7px;
 }
 
 /* Visual feedback when dragging icons */
@@ -628,13 +608,16 @@ body {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
+  background: #c0c0c0;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
   overflow: hidden;
   position: relative;
+}
+
+#login-screen .profile:active {
+  border-color: #000000 #ffffff #ffffff #000000;
 }
 
 #login-screen .profile img {
@@ -661,20 +644,28 @@ body {
 #login-screen input[type="password"] {
   padding: 4px;
   font-size: 14px;
-  border: 1px solid var(--window-border-dark);
-  background: var(--button-bg);
+  background: #ffffff;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
   color: var(--icon-text);
+  font-family: "MS Sans Serif", Tahoma, sans-serif;
 }
 
 #login-screen button {
-  padding: 4px 8px;
+  padding: 2px 12px;
   font-size: 14px;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
+  background: #c0c0c0;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
+  font-family: "MS Sans Serif", Tahoma, sans-serif;
   cursor: pointer;
+}
+
+#login-screen button:active {
+  border-color: #000000 #ffffff #ffffff #000000;
+  padding: 3px 11px 1px 13px;
 }
 
 /* Spotlight overlay */
@@ -711,10 +702,13 @@ body {
   width: 100%;
   padding: 6px;
   font-size: 16px;
-  border: 1px solid var(--window-border-dark);
-  background: var(--button-bg);
+  background: #ffffff;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
   color: var(--icon-text);
   margin-bottom: 8px;
+  font-family: "MS Sans Serif", Tahoma, sans-serif;
 }
 
 #spotlight-overlay ul {
@@ -781,11 +775,6 @@ body {
 .notepad-toolbar button {
   padding: 2px 6px;
   font-size: 12px;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
 }
 
@@ -814,16 +803,13 @@ body {
 .notepad-menu button {
   font-size: 12px;
   padding: 2px 6px;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
 }
 .notepad-menu button.active {
   background: var(--selection-bg);
   color: var(--window-bg);
+  border-color: #000000 #ffffff #ffffff #000000;
+  padding: 3px 5px 1px 7px;
 }
 
 /* Terminal styles */
@@ -874,11 +860,6 @@ body {
 .file-manager-toolbar button {
   padding: 2px 6px;
   font-size: 12px;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
 }
 
@@ -983,19 +964,17 @@ body {
   width: 100%;
   padding: 4px;
   font-size: 14px;
-  border: 1px solid var(--window-border-dark);
-  background: var(--button-bg);
+  background: #ffffff;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #ffffff #000000 #000000 #ffffff;
   color: var(--icon-text);
+  font-family: "MS Sans Serif", Tahoma, sans-serif;
 }
 
 .settings-section button {
   margin-top: 6px;
   padding: 4px 8px;
   font-size: 14px;
-  background: var(--button-bg);
-  border-top: 2px solid var(--btn-border-light);
-  border-left: 2px solid var(--btn-border-light);
-  border-right: 2px solid var(--btn-border-dark);
-  border-bottom: 2px solid var(--btn-border-dark);
   cursor: pointer;
 }

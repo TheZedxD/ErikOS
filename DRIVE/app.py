@@ -34,9 +34,9 @@ import threading
 from io import StringIO
 
 from flask import Flask, jsonify, request, send_from_directory, g, Response, stream_with_context
-import urllib.request
-import urllib.error
 from werkzeug.utils import secure_filename
+
+from .ollama_client import OllamaClient
 
 from tools.diagnostics import run_diagnostics
 from .config import settings
@@ -72,6 +72,8 @@ logger.addHandler(handler)
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 app.logger = logger
+
+ollama_client = OllamaClient()
 
 
 @app.before_request
@@ -209,12 +211,8 @@ def detect_ollama_models() -> tuple[list[str], str | None]:
     models: list[str] = []
     error: str | None = None
     try:
-        req = urllib.request.Request("http://localhost:11434/api/tags")
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.load(resp)
-            if isinstance(data, dict):
-                models = [m.get("name") for m in data.get("models", []) if m.get("name")]
-    except urllib.error.URLError as exc:
+        models = ollama_client.list_models()
+    except Exception as exc:  # pragma: no cover - network
         error = str(exc)
         app.logger.warning("Failed to query Ollama server: %s", exc)
 
@@ -266,27 +264,22 @@ def run_ollama():
     if not prompt and not image_b64:
         return jsonify({"ok": False, "error": "prompt is required"}), 400
 
-    payload: dict[str, object] = {"model": model, "prompt": prompt, "stream": True}
-    if image_b64:
-        payload["images"] = [image_b64]
-
-    data_bytes = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        "http://localhost:11434/api/generate",
-        data=data_bytes,
-        headers={"Content-Type": "application/json"},
-    )
     try:
-        resp = urllib.request.urlopen(req, timeout=60)
-    except urllib.error.URLError as exc:
+        stream_resp = ollama_client.generate(
+            model,
+            prompt,
+            images=[image_b64] if image_b64 else None,
+            stream=True,
+        )
+    except Exception as exc:  # pragma: no cover - network
         app.logger.exception("Error contacting Ollama server")
         return jsonify({"ok": False, "error": str(exc)}), 500
 
     def generate():
         full_response = ""
         try:
-            for line in resp:
-                text = line.decode("utf-8").strip()
+            for text in stream_resp:
+                text = text.strip()
                 if not text:
                     continue
                 yield text + "\n"
@@ -296,7 +289,6 @@ def run_ollama():
                 except Exception:
                     pass
         finally:
-            resp.close()
             if full_response:
                 convo = list(history) if isinstance(history, list) else []
                 convo.append({"role": "assistant", "content": full_response})

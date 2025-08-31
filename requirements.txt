@@ -3,3 +3,4 @@ Pillow==10.2.0 ; python_version < "3.13"
 Pillow>=11.0.0,<12 ; python_version >= "3.13"
 psutil==5.9.8
 python-dotenv==1.0.1
+requests==2.31.0
