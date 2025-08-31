@@ -1,6 +1,7 @@
 @echo off
 setlocal ENABLEEXTENSIONS
 cd /d "%~dp0"
+set "EXITCODE=0"
 
 echo [1/7] Locating Python 3.12+ ...
 set "PY_CMD="
@@ -11,32 +12,39 @@ if not defined PY_CMD (python -c "import sys; assert sys.version_info[:2]>=(3,12
 
 if not defined PY_CMD (
   echo Error: Python 3.12+ is required. Install from https://www.python.org/downloads/windows/
-  exit /b 1
+  set "EXITCODE=1"
+  goto end
 )
 
 echo [2/7] Creating virtual environment (.venv) ...
 %PY_CMD% -m venv ".venv"
 if errorlevel 1 (
   echo Error: venv creation failed.
-  exit /b 1
+  set "EXITCODE=1"
+  goto end
 )
 
 echo [3/7] Activating venv ...
 call ".venv\Scripts\activate"
 if errorlevel 1 (
   echo Error: could not activate .venv
-  exit /b 1
+  set "EXITCODE=1"
+  goto end
 )
 
 echo [4/7] Upgrading pip ...
 python -m pip install -U pip
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  set "EXITCODE=1"
+  goto end
+)
 
 echo [5/7] Installing requirements (wheels only) ...
 pip install --only-binary=:all: -r requirements.txt
 if errorlevel 1 (
   echo Error: dependency install failed.
-  exit /b 1
+  set "EXITCODE=1"
+  goto end
 )
 
 if not exist ".env" (
@@ -52,17 +60,22 @@ echo [7/7] Verifying imports ...
 python - <<PY
 import importlib,sys
 for m in ("flask","PIL","psutil"):
-    try: importlib.import_module(m)
+    try:
+        importlib.import_module(m)
     except Exception as e:
-        print("FAIL:", m, e); sys.exit(1)
+        print("FAIL:", m, e)
+        sys.exit(1)
 print("OK")
 PY
 if errorlevel 1 (
   echo Error: dependency verification failed.
-  exit /b 1
+  set "EXITCODE=1"
+  goto end
 )
 
 echo Installation successful. You may now run start_server.bat
+
+:end
 echo Press any key to exit.
 pause >nul
-exit /b 0
+exit /b %EXITCODE%
