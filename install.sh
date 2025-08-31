@@ -81,3 +81,7 @@ then
 fi
 
 echo "Install complete. Now run start_server.sh"
+if [ -t 1 ]; then
+  read -n 1 -s -r -p "Press any key to exit..."
+  echo
+fi
