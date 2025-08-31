@@ -19,9 +19,9 @@ echo Starting ErikOS server on port %PORT% ...
 REM Launch server in a new window so this script can continue
 start "ErikOS Server" cmd /c ".venv\Scripts\python -m DRIVE.app"
 
-REM Wait up to 20 seconds for the port to respond
+REM Wait up to 20 seconds for the port to respond using a simple TCP check
 powershell -NoProfile -Command ^
-  "$p=%PORT%;$ok=$false;for($i=0;$i -lt 20;$i++){if((Test-NetConnection 127.0.0.1 -Port $p -WarningAction SilentlyContinue).TcpTestSucceeded){$ok=$true;break};Start-Sleep -Seconds 1}; if(-not $ok){exit 1}"
+  "$p=%PORT%;$limit=(Get-Date).AddSeconds(20);while((Get-Date) -lt $limit){try{(New-Object System.Net.Sockets.TcpClient).Connect('127.0.0.1',$p);exit 0}catch{Start-Sleep -Milliseconds 500}};exit 1"
 
 if errorlevel 1 (
   echo Server did not become ready on port %PORT%.

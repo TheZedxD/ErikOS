@@ -62,5 +62,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Install complete. Now run start_server.bat
+echo Installation successful. You may now run start_server.bat
+echo Press any key to exit.
+pause >nul
 exit /b 0
