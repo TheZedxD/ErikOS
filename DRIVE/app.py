@@ -33,7 +33,9 @@ from logging.handlers import RotatingFileHandler
 import threading
 from io import StringIO
 
-from flask import Flask, jsonify, request, send_from_directory, g
+from flask import Flask, jsonify, request, send_from_directory, g, Response, stream_with_context
+import urllib.request
+import urllib.error
 from werkzeug.utils import secure_filename
 
 from tools.diagnostics import run_diagnostics
@@ -207,32 +209,14 @@ def detect_ollama_models() -> tuple[list[str], str | None]:
     models: list[str] = []
     error: str | None = None
     try:
-        result = subprocess.run(
-            ["ollama", "list", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode == 0:
-            try:
-                data = json.loads(result.stdout)
-                if isinstance(data, dict) and isinstance(data.get("models"), list):
-                    models = [m.get("name") for m in data["models"] if m.get("name")]
-                elif isinstance(data, list):
-                    models = [m.get("name") or m.get("model") or m for m in data]
-            except Exception:
-                app.logger.exception("Failed parsing ollama JSON output")
-        else:
-            app.logger.warning(
-                "ollama list returned %s: %s",
-                result.returncode,
-                result.stderr.strip(),
-            )
-    except FileNotFoundError:
-        error = "ollama executable not found"
-    except Exception as exc:
+        req = urllib.request.Request("http://localhost:11434/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.load(resp)
+            if isinstance(data, dict):
+                models = [m.get("name") for m in data.get("models", []) if m.get("name")]
+    except urllib.error.URLError as exc:
         error = str(exc)
-        app.logger.exception("Error running 'ollama list'")
+        app.logger.warning("Failed to query Ollama server: %s", exc)
 
     if not models:
         models = _scan_model_dirs()
@@ -264,68 +248,68 @@ def get_chat_history(profile: str):
 @app.route("/api/ollama", methods=["POST"])
 @app.route("/api/ollama/chat", methods=["POST"])
 def run_ollama():
-    """Run a prompt against the specified model via the `ollama run` CLI.
+    """Run a prompt against the specified model via the Ollama HTTP API.
 
-    Expects JSON with `model`, `prompt` and optional `image` (base64).  The
-    request may also include `history` (list of messages) and `profile` to
-    persist conversation history to disk.  The response contains either a
-    `response` field with the model output or an `error`.
+    Expects JSON with ``model``, ``prompt`` and optional ``image`` (base64).  The
+    request may also include ``history`` (list of messages) and ``profile`` to
+    persist conversation history to disk.  The response is streamed back as
+    newline-delimited JSON chunks mirroring the Ollama API.
     """
     data = request.get_json(silent=True) or {}
-    model = data.get("model") or "llama2"
     prompt = data.get("prompt") or ""
     image_b64 = data.get("image")
     history = data.get("history") or []
     profile = data.get("profile")
-    image_file: str | None = None
+    model = data.get("model")
+    if not model:
+        model = "llava:7b" if image_b64 else "llama3.2:3b"
     if not prompt and not image_b64:
         return jsonify({"ok": False, "error": "prompt is required"}), 400
+
+    payload: dict[str, object] = {"model": model, "prompt": prompt, "stream": True}
     if image_b64:
-        try:
-            raw = base64.b64decode(image_b64)
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-            tmp.write(raw)
-            tmp.close()
-            image_file = tmp.name
-        except Exception as exc:
-            return jsonify({"ok": False, "error": f"invalid image: {exc}"}), 400
-    models, err = detect_ollama_models()
-    if model not in models:
-        return jsonify({"ok": False, "error": f"model '{model}' is not installed"}), 400
+        payload["images"] = [image_b64]
+
+    data_bytes = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "http://localhost:11434/api/generate",
+        data=data_bytes,
+        headers={"Content-Type": "application/json"},
+    )
     try:
-        cmd = ["ollama", "run", model, prompt]
-        if image_file:
-            cmd.extend(["--image", image_file])
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode != 0:
-            app.logger.error("ollama run failed: %s", result.stderr.strip())
-            return jsonify({"ok": False, "error": result.stderr.strip()}), 500
-        response_text = result.stdout.strip()
-        convo = list(history) if isinstance(history, list) else []
-        convo.append({"role": "assistant", "content": response_text})
-        if profile:
-            try:
-                prof = _safe_profile_name(profile)
-                path = CHAT_HISTORY_DIR / f"{prof}.json"
-                with path.open("w", encoding="utf-8") as fh:
-                    json.dump(convo, fh)
-            except Exception:
-                app.logger.exception("Failed writing chat history for %s", profile)
-        return jsonify({"response": response_text})
-    except FileNotFoundError:
-        app.logger.exception("ollama executable not found while running model")
-        return jsonify({"ok": False, "error": "ollama executable not found"}), 500
-    except Exception as exc:
-        app.logger.exception("Error running ollama model")
+        resp = urllib.request.urlopen(req, timeout=60)
+    except urllib.error.URLError as exc:
+        app.logger.exception("Error contacting Ollama server")
         return jsonify({"ok": False, "error": str(exc)}), 500
-    finally:
-        if image_file and os.path.exists(image_file):
-            os.unlink(image_file)
+
+    def generate():
+        full_response = ""
+        try:
+            for line in resp:
+                text = line.decode("utf-8").strip()
+                if not text:
+                    continue
+                yield text + "\n"
+                try:
+                    chunk = json.loads(text)
+                    full_response += chunk.get("response", "")
+                except Exception:
+                    pass
+        finally:
+            resp.close()
+            if full_response:
+                convo = list(history) if isinstance(history, list) else []
+                convo.append({"role": "assistant", "content": full_response})
+                if profile:
+                    try:
+                        prof = _safe_profile_name(profile)
+                        path = CHAT_HISTORY_DIR / f"{prof}.json"
+                        with path.open("w", encoding="utf-8") as fh:
+                            json.dump(convo, fh)
+                    except Exception:
+                        app.logger.exception("Failed writing chat history for %s", profile)
+
+    return Response(stream_with_context(generate()), mimetype="application/x-ndjson")
 
 
 @app.route("/")
