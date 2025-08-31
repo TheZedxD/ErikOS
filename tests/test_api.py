@@ -40,6 +40,14 @@ def test_file_manager_invalid_paths(client):
     assert resp.status_code == 400
 
 
+def test_windows_style_traversal_blocked(client):
+    """Backslashes should be treated as path separators and rejected."""
+    resp = client.get("/api/list-directory", query_string={"path": "..\\"})
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert data.get("error") == "Invalid path"
+
+
 def test_diagnostics_missing_icon():
     main_js = Path("main.js")
     original = main_js.read_text(encoding="utf-8")

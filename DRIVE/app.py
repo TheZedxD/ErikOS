@@ -439,10 +439,25 @@ FILE_BASE = settings.root_dir.resolve()
 
 
 def safe_join(rel_path: str) -> Path:
-    """Return an absolute path under FILE_BASE for ``rel_path``.
+    """Return an absolute path under ``FILE_BASE`` for ``rel_path``.
 
-    Raises ``ValueError`` if the resulting path is outside ``FILE_BASE``."""
-    target = (FILE_BASE / rel_path).resolve()
+    The ``rel_path`` may come from untrusted sources, so this function
+    normalises path separators, rejects absolute paths/drives and ensures the
+    final resolved path is still within ``FILE_BASE``.  ``ValueError`` is
+    raised if the path escapes the base directory.
+    """
+
+    # Treat Windows backslashes as separators even when running on POSIX
+    # systems.  This prevents traversal attempts such as ``..\\secret`` from
+    # being interpreted as a literal file name on Unix.
+    normalised = rel_path.replace("\\", "/")
+    rel = Path(normalised)
+
+    # Disallow absolute paths or explicit drive references
+    if rel.is_absolute() or getattr(rel, "drive", ""):
+        raise ValueError("Path escapes base directory")
+
+    target = (FILE_BASE / rel).resolve()
     try:
         if not target.is_relative_to(FILE_BASE):  # type: ignore[attr-defined]
             raise ValueError("Path escapes base directory")
