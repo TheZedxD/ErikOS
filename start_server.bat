@@ -1,6 +1,7 @@
 @echo off
 setlocal ENABLEEXTENSIONS
 cd /d "%~dp0"
+set "ROOT_DIR=%cd%"
 set "EXITCODE=0"
 
 if not exist ".venv\Scripts\python.exe" (
