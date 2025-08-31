@@ -173,15 +173,23 @@ class WindowManager {
     const win = document.createElement("div");
     win.classList.add("window");
     win.dataset.id = id;
-    // Temporarily position the window in the top‑left offscreen to measure its
-    // dimensions.  Once rendered, we reposition it to the centre of the
-    // desktop.  An incremental offset is applied so that successive
-    // windows don't perfectly overlap.  Without this deferred centring, all
-    // windows would open anchored to the top left which feels unnatural.
-    const offset = (this.windows.size % 5) * 20;
+    // Temporarily position the window offscreen until we calculate its
+    // final position. Default sizes are applied based on app type.
     win.style.left = "-9999px";
     win.style.top = "-9999px";
     win.style.zIndex = this.nextZ++;
+
+    // Set default sizes based on app type
+    const defaultSizes = {
+      settings: { width: 600, height: 500 },
+      "file-manager": { width: 700, height: 500 },
+      chat: { width: 800, height: 600 },
+      crypto: { width: 600, height: 400 },
+      sheets: { width: 800, height: 600 },
+    };
+    const size = defaultSizes[appId] || { width: 400, height: 300 };
+    win.style.width = size.width + "px";
+    win.style.height = size.height + "px";
 
     // Title bar
     const titleBar = document.createElement("div");
@@ -207,6 +215,8 @@ class WindowManager {
     // Content container
     const contentContainer = document.createElement("div");
     contentContainer.classList.add("content");
+    contentContainer.style.overflowY = "auto";
+    contentContainer.style.overflowX = "auto";
     contentContainer.append(contentEl);
     win.append(contentContainer);
     this.desktop.append(win);
@@ -225,23 +235,30 @@ class WindowManager {
     });
     resizeObserver.observe(contentContainer);
 
-    // After adding to the DOM, centre the window within the viewport while
-    // accounting for the taskbar height. Apply a small cascading offset for
-    // multiple windows.
+    // After adding to the DOM, centre the window and ensure it's fully visible
     requestAnimationFrame(() => {
-      const winRect = win.getBoundingClientRect();
-      const taskbarEl = document.getElementById("taskbar");
-      const taskbarHeight = taskbarEl ? taskbarEl.offsetHeight : 0;
-      const left = Math.max(
-        0,
-        (window.innerWidth - winRect.width) / 2 + offset
-      );
-      const top = Math.max(
-        0,
-        (window.innerHeight - taskbarHeight - winRect.height) / 2 + offset
-      );
-      win.style.left = `${left}px`;
-      win.style.top = `${top}px`;
+      const taskbarHeight = 40;
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight - taskbarHeight;
+
+      let left = Math.max(10, (screenWidth - size.width) / 2);
+      let top = Math.max(10, (screenHeight - size.height) / 2);
+
+      const maxWidth = screenWidth - 20;
+      const maxHeight = screenHeight - 20;
+
+      if (size.width > maxWidth) {
+        win.style.width = maxWidth + "px";
+        left = 10;
+      }
+
+      if (size.height > maxHeight) {
+        win.style.height = maxHeight + "px";
+        top = 10;
+      }
+
+      win.style.left = left + "px";
+      win.style.top = top + "px";
     });
 
     // Create taskbar button
@@ -256,8 +273,8 @@ class WindowManager {
       element: win,
       taskItem,
       minimised: false,
-      maximised: false,
-      prevRect: null,
+      maximized: false,
+      prevPos: null,
       maxBtn: maximiseBtn,
     });
 
@@ -272,7 +289,7 @@ class WindowManager {
     });
     maximiseBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.toggleMaximise(id);
+      this.toggleMaximize(id);
     });
     closeBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -280,7 +297,7 @@ class WindowManager {
     });
 
     // Double-click title bar to toggle maximise/restore
-    titleBar.addEventListener("dblclick", () => this.toggleMaximise(id));
+    titleBar.addEventListener("dblclick", () => this.toggleMaximize(id));
 
     // Dragging
     this._makeDraggable(win, titleBar);
@@ -351,53 +368,38 @@ class WindowManager {
     }
   }
 
-  toggleMaximise(id) {
+  toggleMaximize(id) {
     const winInfo = this.windows.get(id);
     if (!winInfo) return;
     this.bringToFront(id);
-    if (winInfo.maximised) {
-      this.restoreWindow(id);
+    const win = winInfo.element;
+    if (winInfo.maximized) {
+      win.style.left = winInfo.prevPos.left;
+      win.style.top = winInfo.prevPos.top;
+      win.style.width = winInfo.prevPos.width;
+      win.style.height = winInfo.prevPos.height;
+      winInfo.maximized = false;
+      if (winInfo.maxBtn) {
+        winInfo.maxBtn.textContent = "□";
+        winInfo.maxBtn.title = "Maximise";
+      }
     } else {
-      this.maximise(id);
+      winInfo.prevPos = {
+        left: win.style.left,
+        top: win.style.top,
+        width: win.style.width,
+        height: win.style.height,
+      };
+      win.style.left = "0px";
+      win.style.top = "0px";
+      win.style.width = window.innerWidth + "px";
+      win.style.height = window.innerHeight - 40 + "px";
+      winInfo.maximized = true;
+      if (winInfo.maxBtn) {
+        winInfo.maxBtn.textContent = "❐";
+        winInfo.maxBtn.title = "Restore";
+      }
     }
-  }
-
-  maximise(id) {
-    const winInfo = this.windows.get(id);
-    if (!winInfo || winInfo.maximised) return;
-    const winEl = winInfo.element;
-    winInfo.prevRect = {
-      left: winEl.offsetLeft,
-      top: winEl.offsetTop,
-      width: winEl.offsetWidth,
-      height: winEl.offsetHeight,
-    };
-    const deskRect = this.desktop.getBoundingClientRect();
-    winEl.style.left = "0px";
-    winEl.style.top = "0px";
-    winEl.style.width = `${deskRect.width}px`;
-    winEl.style.height = `${deskRect.height}px`;
-    winInfo.maximised = true;
-    winEl.classList.add("maximised");
-    winInfo.maxBtn.textContent = "❐";
-    winInfo.maxBtn.title = "Restore";
-  }
-
-  restoreWindow(id) {
-    const winInfo = this.windows.get(id);
-    if (!winInfo || !winInfo.maximised) return;
-    const rect = winInfo.prevRect;
-    const winEl = winInfo.element;
-    if (rect) {
-      winEl.style.left = `${rect.left}px`;
-      winEl.style.top = `${rect.top}px`;
-      winEl.style.width = `${rect.width}px`;
-      winEl.style.height = `${rect.height}px`;
-    }
-    winInfo.maximised = false;
-    winEl.classList.remove("maximised");
-    winInfo.maxBtn.textContent = "□";
-    winInfo.maxBtn.title = "Maximise";
   }
 
   /**
@@ -418,14 +420,19 @@ class WindowManager {
     let offsetX = 0;
     let offsetY = 0;
     const onPointerMove = (e) => {
+      const taskbarHeight = 40;
+      const winWidth = winEl.offsetWidth;
+      const winHeight = winEl.offsetHeight;
+
       let newLeft = e.clientX - offsetX;
       let newTop = e.clientY - offsetY;
-      // Constrain window within the desktop area so it doesn't disappear
-      const deskRect = this.desktop.getBoundingClientRect();
-      const maxLeft = Math.max(0, deskRect.width - winEl.offsetWidth);
-      const maxTop = Math.max(0, deskRect.height - winEl.offsetHeight);
-      newLeft = Math.min(Math.max(0, newLeft), maxLeft);
-      newTop = Math.min(Math.max(0, newTop), maxTop);
+
+      // Keep at least 100px of the window visible horizontally
+      newLeft = Math.max(-winWidth + 100, Math.min(window.innerWidth - 100, newLeft));
+
+      // Ensure the title bar stays visible vertically
+      newTop = Math.max(0, Math.min(window.innerHeight - taskbarHeight - 30, newTop));
+
       winEl.style.left = `${newLeft}px`;
       winEl.style.top = `${newTop}px`;
     };
@@ -437,7 +444,7 @@ class WindowManager {
       // Only left button
       if (e.button !== 0) return;
       const info = this.windows.get(winEl.dataset.id);
-      if (info && info.maximised) return;
+      if (info && info.maximized) return;
       this.bringToFront(winEl.dataset.id);
       offsetX = e.clientX - winEl.offsetLeft;
       offsetY = e.clientY - winEl.offsetTop;
@@ -556,7 +563,7 @@ class WindowManager {
       h.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
         const info = this.windows.get(winEl.dataset.id);
-        if (info && info.maximised) return;
+        if (info && info.maximized) return;
         dir = h.dataset.dir;
         startX = e.clientX;
         startY = e.clientY;

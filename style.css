@@ -413,9 +413,11 @@ body {
 .window .content {
   flex: 1;
   background: var(--window-bg);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px;
   font-size: 14px;
+  max-height: calc(100vh - 80px);
 }
 
 /* Desktop icons */
@@ -447,6 +449,8 @@ body {
 .chat-messages {
   font-family: var(--font-family);
   white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: calc(100% - 40px);
 }
 
 .chat-message.user {
@@ -846,6 +850,7 @@ body {
   padding: 4px;
   overflow-y: auto;
   white-space: pre-wrap;
+  max-height: calc(100% - 40px);
 }
 
 .terminal-input {
@@ -908,6 +913,7 @@ body {
   overflow-y: auto;
   border-top: 1px solid var(--window-border-dark);
   padding: 4px;
+  max-height: calc(100% - 40px);
 }
 
 .file-item {
@@ -960,10 +966,13 @@ body {
   flex-direction: column;
   height: 100%;
   font-size: 14px;
+  min-width: 500px;
 }
 
 .settings-section {
   margin-bottom: 12px;
+  padding: 8px;
+  overflow-y: auto;
 }
 
 .settings-section h3 {
