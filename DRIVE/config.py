@@ -7,7 +7,7 @@ read from a ``.env`` file in the repository root if present and fall back to
 sane defaults otherwise.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -27,13 +27,20 @@ def _split_csv(value: str) -> list[str]:
 class Settings:
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(os.getenv("PORT", "8000"))
-    allowed_origins: list[str] = _split_csv(
-        os.getenv("ALLOWED_ORIGINS", "http://localhost:*")
+    allowed_origins: list[str] = field(
+        default_factory=lambda: _split_csv(
+            os.getenv(
+                "ALLOWED_ORIGINS",
+                "http://localhost:8000,http://127.0.0.1:8000",
+            )
+        )
     )
     root_dir: Path = Path(os.getenv("ROOT_DIR", BASE_DIR)).resolve()
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
-    terminal_whitelist: list[str] = _split_csv(
-        os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping")
+    terminal_whitelist: list[str] = field(
+        default_factory=lambda: _split_csv(
+            os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping")
+        )
     )
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
 

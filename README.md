@@ -24,23 +24,15 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 
 ## Installation
 
-On Python 3.13+, Pillow>=11 is required. The requirements file handles this automatically.
+Requires **Python 3.12+**. On Python 3.13, Pillow 11+ is automatically selected
+from the wheels defined in `requirements.txt`.
 
-Run the bundled start script. It will create a virtual environment,
-install dependencies and launch the server.
+### Windows quick start
+1. Double-click `install.bat` to create the virtual environment and install dependencies.
+2. Double-click `start_server.bat` to launch the server and open the app.
 
-### Windows
-```
-start_server.bat
-```
-
-### Linux
-```
-./start_server.sh
-```
-
-The script automatically opens your default browser to the correct URL
-and reuses the virtual environment on subsequent runs.
+The server will open your default browser to the correct URL and reuse the
+virtual environment on subsequent runs.
 
 ## Customization
 - Switch themes and wallpapers in **Settings**.
