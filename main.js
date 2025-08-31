@@ -3845,178 +3845,273 @@ if (taskbarClock) {
  */
 function openChat() {
   addLog("Chat opened");
+
+  // Create main container with split panels
   const container = document.createElement("div");
-  container.classList.add("chat-container");
-  container.style.display = "flex";
-  container.style.flexDirection = "column";
-  container.style.height = "100%";
-  // Toolbar with model selection
-  const toolbar = document.createElement("div");
-  toolbar.classList.add("chat-toolbar");
-  const modelLabel = document.createElement("span");
-  modelLabel.textContent = "Model: ";
-  const modelSelect = document.createElement("select");
-  modelSelect.disabled = true;
-  toolbar.append(modelLabel, modelSelect);
-  // Messages area
-  const msgList = document.createElement("div");
-  msgList.classList.add("chat-messages");
-  msgList.style.flex = "1";
-  msgList.style.overflowY = "auto";
-  msgList.style.padding = "4px";
-  // Input form
-  const form = document.createElement("form");
-  form.style.display = "flex";
-  form.style.gap = "4px";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Type your message…";
-  input.style.flex = "1";
-  const imageInput = document.createElement("input");
-  imageInput.type = "file";
-  imageInput.accept = "image/*";
-  const sendBtn = document.createElement("button");
-  sendBtn.type = "submit";
-  sendBtn.textContent = "Send";
-  form.append(input, imageInput, sendBtn);
-  container.append(toolbar, msgList, form);
+  container.style.cssText = "display:flex; height:100%; gap:2px;";
+
+  // Left panel – conversation history
+  const historyPanel = document.createElement("div");
+  historyPanel.style.cssText = `
+    width: 30%;
+    min-width: 200px;
+    background: var(--window-bg);
+    border-right: 2px solid var(--window-border-dark);
+    display: flex;
+    flex-direction: column;
+  `;
+
+  // New Chat button
+  const newChatBtn = document.createElement("button");
+  newChatBtn.textContent = "+ New Chat";
+  newChatBtn.style.cssText = `
+    margin: 4px;
+    padding: 6px;
+    background: var(--button-bg);
+    border: 2px solid;
+    border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
+  `;
+  historyPanel.append(newChatBtn);
+
+  // Scrollable conversation list
+  const convList = document.createElement("div");
+  convList.style.cssText = "flex:1; overflow-y:auto; padding:4px;";
+  historyPanel.append(convList);
+
+  // Right panel – current chat
+  const chatPanel = document.createElement("div");
+  chatPanel.style.cssText = "flex:1; display:flex; flex-direction:column;";
+
+  container.append(historyPanel, chatPanel);
   windowManager.createWindow("chat", "Chat", container);
-  let conversation = [];
-  // Fetch list of models from the server
-  async function fetchModels() {
-    try {
-      const res = await fetch("/api/ollama/models");
-      const data = await res.json();
-      modelSelect.innerHTML = "";
-      const models = Array.isArray(data.models) ? data.models : [];
-      if (models.length) {
-        models.forEach((name) => {
-          const opt = document.createElement("option");
-          opt.value = name;
-          opt.textContent = name;
-          modelSelect.append(opt);
-        });
-        modelSelect.disabled = false;
-      } else {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "No models";
-        modelSelect.append(opt);
-        modelSelect.disabled = true;
-        appendMessage(
-          "system",
-          data.error ||
-            "No models detected—please install models or check Ollama's configuration"
-        );
-      }
-    } catch (err) {
-      modelSelect.innerHTML = "";
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "Unavailable";
-      modelSelect.append(opt);
-      modelSelect.disabled = true;
-      appendMessage("system", "Failed to fetch models");
-    }
-  }
-  fetchModels();
-  // Append a message to the chat log
-  function appendMessage(role, text) {
-    const div = document.createElement("div");
-    div.classList.add("chat-message");
-    div.classList.add(role);
-    div.textContent = text;
-    msgList.append(div);
-    msgList.scrollTop = msgList.scrollHeight;
-  }
-  async function loadConversation() {
-    if (currentUser) {
-      conversation = Array.isArray(currentUser.chatHistory)
-        ? [...currentUser.chatHistory]
-        : [];
-      try {
-        const res = await fetch(
-          `/api/ollama/history/${encodeURIComponent(currentUser.name)}`
-        );
-        const data = await res.json();
-        if (Array.isArray(data.history) && data.history.length) {
-          conversation = data.history;
-          currentUser.chatHistory = conversation;
+
+  // Conversation storage
+  if (!currentUser.conversations) currentUser.conversations = [];
+  let currentConversation = null;
+
+  function renderConversationList() {
+    convList.innerHTML = "";
+    currentUser.conversations.forEach((conv) => {
+      const item = document.createElement("div");
+      item.className = "chat-conversation-item";
+      if (conv === currentConversation) item.classList.add("active");
+
+      const title = document.createElement("div");
+      title.textContent = conv.title || "Untitled";
+      title.style.fontWeight = "bold";
+
+      const date = document.createElement("div");
+      date.textContent = new Date(conv.timestamp).toLocaleDateString();
+      date.style.fontSize = "11px";
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "X";
+      deleteBtn.style.cssText = "float:right; padding:2px 4px; font-size:10px;";
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm("Delete this conversation?")) {
+          const idx = currentUser.conversations.indexOf(conv);
+          currentUser.conversations.splice(idx, 1);
           saveProfiles(profiles);
+          if (conv === currentConversation) {
+            startNewChat();
+          } else {
+            renderConversationList();
+          }
         }
-      } catch (err) {}
-    }
-    conversation.forEach((msg) => appendMessage(msg.role, msg.content));
-  }
-  loadConversation();
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      };
+
+      item.append(deleteBtn, title, date);
+      item.onclick = () => loadConversation(conv);
+      convList.append(item);
     });
   }
-  // Handle message submission
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const msg = input.value.trim();
-    let imageData = null;
-    if (imageInput.files[0]) {
+
+  function generateTitle(message) {
+    return message.slice(0, 30) + (message.length > 30 ? "..." : "");
+  }
+
+  function renderChatArea() {
+    chatPanel.innerHTML = "";
+
+    const toolbar = document.createElement("div");
+    toolbar.classList.add("chat-toolbar");
+    const modelLabel = document.createElement("span");
+    modelLabel.textContent = "Model: ";
+    const modelSelect = document.createElement("select");
+    modelSelect.disabled = true;
+    toolbar.append(modelLabel, modelSelect);
+
+    const msgList = document.createElement("div");
+    msgList.classList.add("chat-messages");
+    msgList.style.flex = "1";
+    msgList.style.overflowY = "auto";
+    msgList.style.padding = "4px";
+
+    const form = document.createElement("form");
+    form.style.display = "flex";
+    form.style.gap = "4px";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Type your message…";
+    input.style.flex = "1";
+    const imageInput = document.createElement("input");
+    imageInput.type = "file";
+    imageInput.accept = "image/*";
+    const sendBtn = document.createElement("button");
+    sendBtn.type = "submit";
+    sendBtn.textContent = "Send";
+    form.append(input, imageInput, sendBtn);
+
+    chatPanel.append(toolbar, msgList, form);
+
+    function appendMessage(role, text) {
+      const div = document.createElement("div");
+      div.classList.add("chat-message", role);
+      div.textContent = text;
+      msgList.append(div);
+      msgList.scrollTop = msgList.scrollHeight;
+    }
+
+    currentConversation.messages.forEach((m) =>
+      appendMessage(m.role, m.content)
+    );
+
+    async function fetchModels() {
       try {
-        imageData = await fileToBase64(imageInput.files[0]);
-        imageData = imageData.split(",")[1];
+        const res = await fetch("/api/ollama/models");
+        const data = await res.json();
+        modelSelect.innerHTML = "";
+        const models = Array.isArray(data.models) ? data.models : [];
+        if (models.length) {
+          models.forEach((name) => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            modelSelect.append(opt);
+          });
+          modelSelect.disabled = false;
+        } else {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "No models";
+          modelSelect.append(opt);
+          modelSelect.disabled = true;
+          appendMessage(
+            "system",
+            data.error ||
+              "No models detected—please install models or check Ollama's configuration"
+          );
+        }
       } catch (err) {
-        console.error(err);
+        modelSelect.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Unavailable";
+        modelSelect.append(opt);
+        modelSelect.disabled = true;
+        appendMessage("system", "Failed to fetch models");
       }
     }
-    if (!msg && !imageData) return;
-    if (msg) {
-      appendMessage("user", msg);
-      conversation.push({ role: "user", content: msg });
-      if (currentUser) {
-        currentUser.chatHistory = conversation;
-        saveProfiles(profiles);
-      }
-      input.value = "";
-    }
-    // Show placeholder while waiting for response
-    appendMessage("assistant", "…");
-    const placeholder = msgList.lastChild;
-    const selectedModel = modelSelect.value || "llama2";
-    try {
-      const res = await fetch("/api/ollama/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: selectedModel,
-          prompt: msg,
-          history: conversation,
-          image: imageData,
-          profile: currentUser ? currentUser.name : null,
-        }),
+    fetchModels();
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
-      const data = await res.json();
-      placeholder.remove();
-      if (data.error) {
-        appendMessage("assistant", "Error: " + data.error);
-      } else {
-        const respText = data.response || "";
-        appendMessage("assistant", respText);
-        conversation.push({ role: "assistant", content: respText });
-        if (currentUser) {
-          currentUser.chatHistory = conversation;
-          saveProfiles(profiles);
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = input.value.trim();
+      let imageData = null;
+      if (imageInput.files[0]) {
+        try {
+          imageData = await fileToBase64(imageInput.files[0]);
+          imageData = imageData.split(",")[1];
+        } catch (err) {
+          console.error(err);
         }
       }
-    } catch (err) {
-      placeholder.remove();
-      appendMessage("assistant", "Error contacting model");
-    } finally {
-      fetchModels();
-    }
-    imageInput.value = "";
-  });
+      if (!msg && !imageData) return;
+      if (msg) {
+        appendMessage("user", msg);
+        currentConversation.messages.push({ role: "user", content: msg });
+        if (currentConversation.title === "New Chat") {
+          currentConversation.title = generateTitle(msg);
+        }
+        saveProfiles(profiles);
+        renderConversationList();
+        input.value = "";
+      }
+      appendMessage("assistant", "…");
+      const placeholder = msgList.lastChild;
+      const selectedModel = modelSelect.value || "llama2";
+      try {
+        const res = await fetch("/api/ollama/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: selectedModel,
+            prompt: msg,
+            history: currentConversation.messages,
+            image: imageData,
+            profile: currentUser ? currentUser.name : null,
+          }),
+        });
+        const data = await res.json();
+        placeholder.remove();
+        if (data.error) {
+          appendMessage("assistant", "Error: " + data.error);
+        } else {
+          const respText = data.response || "";
+          appendMessage("assistant", respText);
+          currentConversation.messages.push({
+            role: "assistant",
+            content: respText,
+          });
+          saveProfiles(profiles);
+          renderConversationList();
+        }
+      } catch (err) {
+        placeholder.remove();
+        appendMessage("assistant", "Error contacting model");
+      } finally {
+        fetchModels();
+      }
+      imageInput.value = "";
+    });
+  }
+
+  function loadConversation(conv) {
+    currentConversation = conv;
+    renderConversationList();
+    renderChatArea();
+  }
+
+  function startNewChat() {
+    currentConversation = {
+      id: Date.now(),
+      title: "New Chat",
+      messages: [],
+      timestamp: new Date().toISOString(),
+    };
+    currentUser.conversations.unshift(currentConversation);
+    saveProfiles(profiles);
+    renderConversationList();
+    renderChatArea();
+  }
+
+  newChatBtn.onclick = startNewChat;
+
+  if (currentUser.conversations.length) {
+    loadConversation(currentUser.conversations[0]);
+  } else {
+    startNewChat();
+  }
 }
 
 // ------------------------------------------------------------
