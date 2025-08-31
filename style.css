@@ -475,6 +475,24 @@ body {
   padding: 2px;
 }
 
+/* Conversation list items for chat */
+.chat-conversation-item {
+  padding: 6px;
+  margin: 2px;
+  border: 1px solid var(--window-border-dark);
+  cursor: pointer;
+}
+
+.chat-conversation-item:hover {
+  background: var(--selection-bg);
+  color: #fff;
+}
+
+.chat-conversation-item.active {
+  background: var(--selection-bg);
+  color: #fff;
+}
+
 /* Settings tabs styling */
 .settings-tabs {
   display: flex;
