@@ -224,8 +224,9 @@ body {
 
 body {
   background-color: var(--desktop-bg);
-  /* Wallpaper applied via CSS background image.  The image is defined in
-     main.js based on user settings.  Fallback to our default wallpaper. */
+  /* Wallpaper applied via CSS background image.  The image is defined by
+     the bootstrap scripts based on user settings.  Fallback to our default
+     wallpaper. */
   background-image: url("./images/wallpaper.png");
   background-size: cover;
   background-position: center;

@@ -13,8 +13,8 @@ endpoint and therefore focuses on inexpensive verifications:
   their HTTP status codes.
 * Ensure the ``icons`` directory exists and contains at least one icon.
 * Attempt to load ``profiles.json`` if present.
-* Confirm each application's icon path in ``main.js`` points to an
-  existing file.
+* Confirm each application's icon path declared in the front-end app
+  modules points to an existing file.
 
 Results are appended to ``logs/diagnostics.log`` and a summary is
 returned to the caller.
@@ -22,6 +22,7 @@ returned to the caller.
 
 import json
 import logging
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -129,18 +130,19 @@ def _check_icons_and_profiles(issues: list[str]) -> None:
 
 
 def _check_application_icons(issues: list[str]) -> None:
-    """Ensure application icon paths in ``main.js`` exist."""
-    main_js = BASE_DIR / "main.js"
-    if not main_js.exists():
-        issues.append("main.js not found")
+    """Ensure application icon paths in ``src/js/apps`` exist."""
+    apps_dir = BASE_DIR / "src" / "js" / "apps"
+    if not apps_dir.exists():
+        issues.append("apps directory not found")
         return
-    text = main_js.read_text(encoding="utf-8")
-    import re
-
-    for match in re.finditer(r"icon:\s*\"([^\"]+)\"", text):
-        icon_path = match.group(1)
-        if not (BASE_DIR / icon_path).exists():
-            issues.append(f"Missing icon file: {icon_path}")
+    for path in apps_dir.glob("*.js"):
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"icon:\s*['\"]([^'\"]+)['\"]", text):
+            icon_path = match.group(1)
+            # Support absolute and relative references
+            resolved = (BASE_DIR / icon_path.lstrip("./")).resolve()
+            if not resolved.exists():
+                issues.append(f"Missing icon file: {icon_path}")
 
 
 def run_diagnostics(app: Flask) -> dict[str, Any]:

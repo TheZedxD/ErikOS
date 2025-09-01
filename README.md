@@ -6,6 +6,7 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 ## Features
 - **Desktop** with icons, start menu and taskbar
 - **Notepad** text editor
+  - Auto-saves your work in the browser
 - **File Manager** for browsing and manipulating files
 - **Terminal** executing a whitelist of safe commands
 - **System Monitor** for background scripts
