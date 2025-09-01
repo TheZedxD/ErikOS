@@ -328,6 +328,12 @@ def index() -> "str":
     return send_from_directory(STATIC_DIR, "index.html")
 
 
+@app.route("/icons/<path:filename>")
+def serve_icon(filename: str):
+    """Serve icon images from the icons directory."""
+    return send_from_directory(BASE_DIR / "icons", filename)
+
+
 @app.route("/<path:filename>")
 def serve_static(filename: str):
     """Serve other static assets such as JS, CSS, images or icons.

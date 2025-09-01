@@ -1,5 +1,5 @@
 [
-  {"id":"notepad","title":"Notepad","icon":"notepad.png","entry":"/src/js/apps/notepad.js","comingSoon":true},
-  {"id":"file-manager","title":"File Manager","icon":"file-manager.png","entry":"/src/js/apps/file-manager.js","comingSoon":false},
-  {"id":"terminal","title":"Terminal","icon":"terminal.png","entry":"/src/js/apps/terminal.js","comingSoon":false}
+  {"id":"notepad","title":"Notepad","icon":"/icons/notepad.png","entry":"/src/js/apps/notepad.js","comingSoon":true},
+  {"id":"file-manager","title":"File Manager","icon":"/icons/file-manager.png","entry":"/src/js/apps/file-manager.js","comingSoon":false},
+  {"id":"terminal","title":"Terminal","icon":"/icons/terminal.png","entry":"/src/js/apps/terminal.js","comingSoon":false}
 ]
