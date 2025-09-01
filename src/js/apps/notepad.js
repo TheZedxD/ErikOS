@@ -14,6 +14,8 @@ export function mount(winEl, ctx, initialText = "") {
   container.style.flexDirection = "column";
   container.style.height = "100%";
 
+  const STORAGE_KEY = "notepad-autosave";
+
   const menu = document.createElement("div");
   menu.classList.add("notepad-menu");
 
@@ -36,7 +38,7 @@ export function mount(winEl, ctx, initialText = "") {
 
   const textarea = document.createElement("textarea");
   textarea.classList.add("notepad-editor");
-  textarea.value = initialText;
+  textarea.value = initialText || localStorage.getItem(STORAGE_KEY) || "";
   container.append(textarea);
 
   const editor = CodeMirror.fromTextArea(textarea, {
@@ -67,10 +69,17 @@ export function mount(winEl, ctx, initialText = "") {
     URL.revokeObjectURL(url);
   }
 
+  editor.on("change", () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, editor.getValue());
+    } catch {}
+  });
+
   newBtn.addEventListener("click", () => {
     if (!confirm("Discard current document?")) return;
     editor.setValue("");
     currentFileHandle = null;
+    localStorage.removeItem(STORAGE_KEY);
   });
 
   openBtn.addEventListener("click", async () => {
@@ -91,6 +100,7 @@ export function mount(winEl, ctx, initialText = "") {
         const content = await file.text();
         editor.setValue(content);
         currentFileHandle = fileHandle;
+        localStorage.setItem(STORAGE_KEY, content);
       } else {
         const input = document.createElement("input");
         input.type = "file";
@@ -100,7 +110,10 @@ export function mount(winEl, ctx, initialText = "") {
         input.addEventListener("change", () => {
           const file = input.files[0];
           if (!file) return;
-          file.text().then((text) => editor.setValue(text));
+          file.text().then((text) => {
+            editor.setValue(text);
+            localStorage.setItem(STORAGE_KEY, text);
+          });
           currentFileHandle = null;
           input.remove();
         });

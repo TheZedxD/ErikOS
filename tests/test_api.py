@@ -70,17 +70,18 @@ def test_windows_style_traversal_blocked(client):
 
 
 def test_diagnostics_missing_icon():
-    main_js = Path("main.js")
-    original = main_js.read_text(encoding="utf-8")
+    target = Path("src/js/apps/notepad.js")
+    original = target.read_text(encoding="utf-8")
     try:
-        main_js.write_text(
-            original + "\nconst missing={icon: \"icons/does-not-exist.png\"};\n",
+        target.write_text(
+            original
+            + "\nexport const missing={icon:'/icons/does-not-exist.png'};\n",
             encoding="utf-8",
         )
         result = run_diagnostics(app)
     finally:
-        main_js.write_text(original, encoding="utf-8")
+        target.write_text(original, encoding="utf-8")
     assert any(
-        "Missing icon file: icons/does-not-exist.png" in issue
+        "Missing icon file: /icons/does-not-exist.png" in issue
         for issue in result.get("issues", [])
     )
