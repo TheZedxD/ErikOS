@@ -4,121 +4,24 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Win95‑Style Browser Desktop</title>
-    <!-- Favicon for the application -->
-    <link rel="icon" href="favicon.png" type="image/png" />
-    <!--
-    This project implements a Windows‑95 inspired desktop environment in the
-    browser. Styles are defined in the accompanying style.css file and the
-    logic lives in main.js.  Icons and wallpapers are served from the
-    project/assets directories.
-  -->
-    <link rel="stylesheet" href="style.css" />
-    <!-- CodeMirror 5 is used in the Notepad application.  A modern editor
-       such as CodeMirror 6 would normally be preferred, but at the time
-       of writing there is no simple CDN build that works reliably without
-       bundling.  CodeMirror 5 remains lightweight and provides a familiar
-       editing experience. -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css"
-      integrity="sha512-fyWEPiRxUEUx1PUcRULebbITLreCDT36ZxfO2AF0cfL9Qq3AD3RJm9inBeDQ4cUHhRkhqzMyZmcjE/Uf5Zl+6g=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"
-      integrity="sha512-qTqpz4++EUhgYWfcl6f72M0LESttIhhV3sxUcOdCc6zfcwQOBrftoYB2jAjFluLJZlXKE2/r3poUXP0bZ6EfyQ=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"
-      integrity="sha512-k2nH+KpQcU8ZFJDLO0MdDEnUoXdJJ+zXL7ba10uzpKZNVQYfq6rmZ9tB6p9Yk5b7lKdKewiHg5H+/0U2nSzH2w=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <!-- SheetJS for XLSX import/export in Sheets app -->
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <!-- JSZip for exporting workbooks as ZIP of CSVs -->
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
+    <title>ErikOS</title>
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <div id="desktop" tabindex="0" aria-label="desktop" role="application">
-      <!-- Desktop icons are injected here by main.js -->
-    </div>
-
-    <!-- Taskbar at the bottom of the screen -->
+    <div id="desktop"></div>
+    <div id="windows-root"></div>
     <div id="taskbar">
-      <!-- Start button.  Removed the icon to better fit the classic look and fix sizing issues.  The button text is sufficient for clarity. -->
-      <button id="start-button" title="Open Start Menu">Start</button>
-      <div id="taskbar-windows" aria-label="Open windows"></div>
-      <!-- System tray holds small icons like the links tray -->
-      <div id="system-tray">
-        <img
-          id="tray-links-icon"
-          src="./icons/link.png"
-          alt="Links"
-          title="Quick Links"
-        />
-        <img
-          id="tray-snip-icon"
-          src="./icons/gallery.png"
-          alt="Snip"
-          title="Screenshot Tool"
-        />
-        <img
-          id="tray-volume-icon"
-          src="./icons/media-player.png"
-          alt="Volume"
-          title="Volume Control"
-        />
+      <button id="start-button">Start</button>
+      <div id="taskbar-windows"></div>
+      <div id="tray">
+        <img id="tray-links-icon" alt="Links" src="/icons/link-manager.png" />
+        <img id="tray-volume-icon" alt="Volume" src="/icons/media-player.png" />
+        <img id="tray-snip-icon" alt="Snip" src="/icons/recorder.png" />
       </div>
-      <!-- System clock displayed on the right side of the taskbar -->
-      <div id="system-clock" aria-label="System clock"></div>
     </div>
-
-    <!-- Tray menu for quick links (populated at runtime) -->
-    <ul id="tray-menu" role="menu" aria-hidden="true"></ul>
-
-    <!-- Start menu / spotlight style launcher -->
-    <div id="start-menu" role="menu" aria-hidden="true">
-      <input
-        id="start-search"
-        type="text"
-        placeholder="Type to search…"
-        aria-label="Search programs"
-      />
-      <ul id="start-app-list" role="menu"></ul>
-    </div>
-
-    <!-- Context menu used for desktop icons and windows -->
-    <ul id="context-menu" role="menu" aria-hidden="true">
-      <!-- Items are populated dynamically based on the context -->
-    </ul>
-
-    <!-- Login screen overlay.  When no profiles exist or the user is logged out, this screen
-       appears, listing available profiles and providing a form to create a master user.  The
-       contents are populated at runtime. -->
-    <div id="login-screen" aria-hidden="true"></div>
-
-    <!-- Spotlight overlay for fast application launching.  Pressing the configured key
-       combination opens this overlay, allowing the user to search across applications
-       and custom links.  The overlay is populated dynamically by main.js. -->
-    <div id="spotlight-overlay" aria-hidden="true"></div>
-
-    <!-- Screenshot overlay -->
-    <div id="snip-overlay" aria-hidden="true"></div>
-
-    <!-- Main application logic -->
-      <script type="module" src="./js/bootstrap.js"></script>
+    <div id="start-menu" aria-hidden="true"><ul id="start-app-list"></ul></div>
+    <script type="module" src="/js/bootstrap.js"></script>
   </body>
 </html>
+
