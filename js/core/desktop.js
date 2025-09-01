@@ -69,7 +69,8 @@ export function renderDesktopIcons(apps) {
     el.dataset.appId = app.id;
     el.innerHTML = `<img alt="${app.name}" loading="lazy"><span>${app.name}</span>`;
     const img = el.querySelector('img');
-    img.src = app.icon || '/icons/default.png';
+    // Fallback to existing favicon if app icon is missing
+    img.src = app.icon || '/favicon.png';
     el.addEventListener('dblclick', () => launchApp(app.id));
     root.appendChild(el);
   }
