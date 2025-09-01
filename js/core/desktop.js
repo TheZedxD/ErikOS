@@ -7,6 +7,7 @@ export function initDesktop() {
   const startMenu = document.getElementById('start-menu');
   const appList = document.getElementById('start-app-list');
 
+  console.time('BOOT: start');
   appList.innerHTML = '';
   applications.forEach(app => {
     const li = document.createElement('li');
@@ -55,6 +56,7 @@ export function initDesktop() {
   };
   window.addEventListener('keydown', keyHandler);
   listeners.push({ target: window, type: 'keydown', handler: keyHandler });
+  console.timeEnd('BOOT: start');
 }
 
 export function teardownDesktop() {
