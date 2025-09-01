@@ -1,10 +1,9 @@
-import { applications } from './globals.js';
+import { launchApp } from './launcher.js';
 
 let listeners = [];
 
 function launch(id) {
-  const app = applications.find(a => a.id === id);
-  if (app) app.launch();
+  launchApp(id);
 }
 
 export function registerTray() {

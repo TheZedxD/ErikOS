@@ -10,6 +10,19 @@ class WindowManager {
     this.taskbar = document.getElementById('taskbar-windows');
   }
 
+  open(app) {
+    if (app && typeof app.launch === 'function' && !app.placeholder) {
+      try {
+        return app.launch();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    const content = document.createElement('div');
+    content.textContent = 'Coming Soon';
+    this.createWindow(app?.id || 'unknown', app?.name || 'App', content);
+  }
+
   createWindow(appId, title, contentEl) {
     const id = `${appId}-${this.nextId++}`;
     const win = document.createElement('div');
