@@ -7,7 +7,27 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  const msg = document.createElement('div');
-  msg.textContent = `${meta.name} app coming soon`;
-  winEl.appendChild(msg);
+  const container = winEl;
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'center';
+  container.style.justifyContent = 'center';
+  container.style.fontSize = '32px';
+
+  const timeEl = document.createElement('div');
+  const dateEl = document.createElement('div');
+  dateEl.style.fontSize = '18px';
+  container.append(timeEl, dateEl);
+
+  function update() {
+    const now = new Date();
+    timeEl.textContent = now.toLocaleTimeString();
+    dateEl.textContent = now.toLocaleDateString();
+  }
+
+  update();
+  const interval = setInterval(update, 1000);
+
+  const closeBtn = winEl.querySelector('.controls button:last-child');
+  if (closeBtn) closeBtn.addEventListener('click', () => clearInterval(interval));
 }

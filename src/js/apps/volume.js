@@ -7,7 +7,22 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  const msg = document.createElement('div');
-  msg.textContent = `${meta.name} app coming soon`;
-  winEl.appendChild(msg);
+  const container = winEl;
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'stretch';
+
+  const label = document.createElement('label');
+  label.textContent = 'Volume:';
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = '1';
+  slider.step = '0.01';
+  slider.value = String(globalVolume);
+  slider.addEventListener('input', () => {
+    setGlobalVolume(parseFloat(slider.value));
+  });
+
+  container.append(label, slider);
 }
