@@ -1034,3 +1034,33 @@ body {
     transform: scale(1);
   }
 }
+
+/* Snip overlay and toast */
+#snip-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  cursor: crosshair;
+  z-index: 10000;
+}
+
+.snip-selection {
+  position: absolute;
+  border: 1px solid #fff;
+  background: rgba(255, 255, 255, 0.3);
+  color: #000;
+  font-size: 12px;
+  font-family: var(--font-family);
+  padding: 2px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 50px;
+  right: 50px;
+  background: var(--taskbar-bg);
+  border: 2px solid var(--window-border-dark);
+  padding: 4px 8px;
+  z-index: 10001;
+}
