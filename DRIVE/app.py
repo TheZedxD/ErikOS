@@ -484,7 +484,7 @@ def _get_user_root() -> Path | None:
         data = request.get_json(silent=True) or {}
         uid = data.get("user")
     if not uid:
-        return None
+        uid = "guest"
     return user_root(uid)
 
 

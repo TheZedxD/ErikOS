@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openDiagnostics() {
-  console.warn('diagnostics app not implemented');
+  openAppWindow('diagnostics', 'Diagnostics');
 }

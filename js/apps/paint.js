@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openPaint() {
-  console.warn('paint app not implemented');
+  openAppWindow('paint', 'Paint');
 }

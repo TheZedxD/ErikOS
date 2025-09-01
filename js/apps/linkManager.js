@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openLinkEditor() {
-  console.warn('link manager app not implemented');
+  openAppWindow('link-manager', 'Link Manager');
 }

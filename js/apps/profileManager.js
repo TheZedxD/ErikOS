@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openProfileManager() {
-  console.warn('profile manager app not implemented');
+  openAppWindow('profiles', 'Profile Manager');
 }

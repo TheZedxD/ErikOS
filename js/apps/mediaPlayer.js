@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openMediaPlayer() {
-  console.warn('media player app not implemented');
+  openAppWindow('media-player', 'Media Player');
 }

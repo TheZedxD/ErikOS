@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openWorldClock() {
-  console.warn('world clock app not implemented');
+  openAppWindow('world-clock', 'World Clocks');
 }

@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openFileManager() {
-  console.warn('file manager app not implemented');
+  openAppWindow('file-manager', 'File Manager');
 }

@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openChat() {
-  console.warn('chat app not implemented');
+  openAppWindow('chat', 'Chat');
 }

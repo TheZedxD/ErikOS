@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openSheets() {
-  console.warn('sheets app not implemented');
+  openAppWindow('sheets', 'Sheets');
 }

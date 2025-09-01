@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openTerminal() {
-  console.warn('terminal app not implemented');
+  openAppWindow('terminal', 'Terminal');
 }

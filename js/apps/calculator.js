@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openCalculator() {
-  console.warn('calculator app not implemented');
+  openAppWindow('calculator', 'Calculator');
 }

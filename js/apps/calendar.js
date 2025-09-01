@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openCalendar() {
-  console.warn('calendar app not implemented');
+  openAppWindow('calendar', 'Calendar');
 }

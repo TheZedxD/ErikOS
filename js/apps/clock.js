@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openClock() {
-  console.warn('clock app not implemented');
+  openAppWindow('clock', 'Clock');
 }

@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openRecorder() {
-  console.warn('recorder app not implemented');
+  openAppWindow('recorder', 'Recorder');
 }

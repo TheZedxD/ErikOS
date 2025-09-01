@@ -15,8 +15,9 @@ class WindowManager {
     const win = document.createElement('div');
     win.classList.add('window');
     win.dataset.id = id;
-    win.style.left = '-9999px';
-    win.style.top = '-9999px';
+    const offset = (this.nextId - 2) * 30;
+    win.style.left = `${100 + offset}px`;
+    win.style.top = `${100 + offset}px`;
     win.style.zIndex = this.nextZ++;
 
     const titleBar = document.createElement('div');
@@ -29,6 +30,11 @@ class WindowManager {
       '</div>';
     win.appendChild(titleBar);
     win.appendChild(contentEl);
+
+    const [minBtn,, closeBtn] = titleBar.querySelectorAll('button');
+    minBtn.addEventListener('click', () => this.minimizeWindow(id));
+    closeBtn.addEventListener('click', () => this.closeWindow(id));
+    win.addEventListener('mousedown', () => this.focusWindow(id));
 
     this.desktop.appendChild(win);
     this.windows.set(id, win);
@@ -58,6 +64,8 @@ class WindowManager {
   minimizeWindow(id) {
     const win = this.windows.get(id);
     if (win) win.style.display = 'none';
+    const btn = this.taskbar.querySelector(`button[data-id="${id}"]`);
+    if (btn) btn.classList.remove('active');
   }
 
   restoreWindow(id) {
@@ -83,6 +91,15 @@ class WindowManager {
     } else {
       this.minimizeWindow(id);
     }
+  }
+
+  clear() {
+    this.windows.forEach((win, id) => {
+      win.remove();
+      const btn = this.taskbar.querySelector(`button[data-id="${id}"]`);
+      if (btn) btn.remove();
+    });
+    this.windows.clear();
   }
 }
 
