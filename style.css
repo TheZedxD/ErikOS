@@ -629,6 +629,11 @@ body {
   color: var(--icon-text);
 }
 
+#desktop .desktop-icon.selected .label {
+  background: var(--selection-bg);
+  color: var(--window-bg);
+}
+
 /* Start menu (launcher) */
 #start-menu {
   position: absolute;
