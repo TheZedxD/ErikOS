@@ -70,6 +70,12 @@
           title="Quick Links"
         />
         <img
+          id="tray-snip-icon"
+          src="./icons/gallery.png"
+          alt="Snip"
+          title="Screenshot Tool"
+        />
+        <img
           id="tray-volume-icon"
           src="./icons/media-player.png"
           alt="Volume"
@@ -108,6 +114,9 @@
        combination opens this overlay, allowing the user to search across applications
        and custom links.  The overlay is populated dynamically by main.js. -->
     <div id="spotlight-overlay" aria-hidden="true"></div>
+
+    <!-- Screenshot overlay -->
+    <div id="snip-overlay" aria-hidden="true"></div>
 
     <!-- Main application logic -->
     <script type="module" src="main.js"></script>
