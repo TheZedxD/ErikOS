@@ -1,21 +1,21 @@
-import { applications } from './globals.js';
+import { launchApp } from './launcher.js';
 
 let listeners = [];
 
-export function initDesktop() {
+export function initDesktop(apps = []) {
   const startBtn = document.getElementById('start-button');
   const startMenu = document.getElementById('start-menu');
   const appList = document.getElementById('start-app-list');
 
   console.time('BOOT: start');
   appList.innerHTML = '';
-  applications.forEach(app => {
+  apps.filter(a => a.startMenu !== false).forEach(app => {
     const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.textContent = app.name;
     btn.addEventListener('click', () => {
       startMenu.setAttribute('aria-hidden', 'true');
-      app.launch();
+      launchApp(app.id);
     });
     li.appendChild(btn);
     appList.appendChild(li);
@@ -59,6 +59,22 @@ export function initDesktop() {
   console.timeEnd('BOOT: start');
 }
 
+export function renderDesktopIcons(apps) {
+  const root = document.getElementById('desktop');
+  if (!root) return;
+  root.innerHTML = '';
+  for (const app of apps.filter(a => a.desktop !== false)) {
+    const el = document.createElement('div');
+    el.className = 'icon';
+    el.dataset.appId = app.id;
+    el.innerHTML = `<img alt="${app.name}" loading="lazy"><span>${app.name}</span>`;
+    const img = el.querySelector('img');
+    img.src = app.icon || '/icons/default.png';
+    el.addEventListener('dblclick', () => launchApp(app.id));
+    root.appendChild(el);
+  }
+}
+
 export function teardownDesktop() {
   listeners.forEach(({ target, type, handler }) => target.removeEventListener(type, handler));
   listeners = [];
@@ -66,4 +82,6 @@ export function teardownDesktop() {
   if (appList) appList.innerHTML = '';
   const startMenu = document.getElementById('start-menu');
   if (startMenu) startMenu.setAttribute('aria-hidden', 'true');
+  const root = document.getElementById('desktop');
+  if (root) root.innerHTML = '';
 }

@@ -2,15 +2,20 @@
 // Initialises globals and exposes them on window for legacy modules.
 
 import { windowManager } from './core/windowManager.js';
-import { initDesktop, teardownDesktop } from './core/desktop.js';
+import { initDesktop, teardownDesktop, renderDesktopIcons } from './core/desktop.js';
 import { registerTray, teardownTray } from './core/tray.js';
-import { applications, setCurrentUser } from './core/globals.js';
+import { setCurrentUser } from './core/globals.js';
+import { loadApps, validateApps } from './core/appRegistry.js';
+import { launchApp } from './core/launcher.js';
+
+let apps = [];
 
 function login() {
   setCurrentUser({ id: 'guest', name: 'Guest' });
 
   console.time('BOOT: desktop');
-  initDesktop();
+  initDesktop(apps);
+  renderDesktopIcons(apps);
   console.timeEnd('BOOT: desktop');
 
   console.time('BOOT: tray');
@@ -26,10 +31,11 @@ export function logout() {
   login();
 }
 
-export function bootstrap() {
+export async function bootstrap() {
   console.time('BOOT: registry');
-  // Access applications to ensure registry is evaluated.
-  void applications;
+  apps = await loadApps();
+  validateApps(apps);
+  renderDesktopIcons(apps);
   console.timeEnd('BOOT: registry');
 
   login();
@@ -39,7 +45,7 @@ window.addEventListener('erikos-logout', logout);
 
 // Expose minimal APIs globally for existing inline handlers.
 window.ErikOS = {
-  applications,
+  launchApp,
   windowManager,
   setCurrentUser,
   logout,
