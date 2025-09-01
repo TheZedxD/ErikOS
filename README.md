@@ -19,8 +19,13 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 - **Sound Recorder**
 - **Volume** control
 - **Logs** viewer
-- **Profile Manager** for multiple users
+- **Profile Manager** for up to 5 users
+- **Per-user file storage** sandboxed under `DRIVE/users/<id>`
 - **Diagnostics** self-check tool
+
+## User data
+Each profile's files are isolated in `DRIVE/users/<id>` on the server.
+Profiles are limited to five to keep things tidy.
 
 ## Installation
 

@@ -587,7 +587,13 @@ const windowManager = new WindowManager();
 
 async function apiJSON(path, options = {}) {
   try {
-    const res = await fetch(path, options);
+    const opts = { ...options };
+    const headers = { ...(opts.headers || {}) };
+    if (currentUser && currentUser.id) {
+      headers["X-User-Id"] = currentUser.id;
+    }
+    opts.headers = headers;
+    const res = await fetch(path, opts);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return { ok: true, data: await res.json() };
   } catch (err) {
@@ -792,9 +798,14 @@ function showLoginScreen() {
     // Button to add new profile
     const addBtn = document.createElement("button");
     addBtn.textContent = "Add Profile";
-    addBtn.addEventListener("click", () => {
-      showCreateProfileForm();
-    });
+    if (profiles.length >= 5) {
+      addBtn.disabled = true;
+      addBtn.title = "Limit reached (5)";
+    } else {
+      addBtn.addEventListener("click", () => {
+        showCreateProfileForm();
+      });
+    }
     container.append(addBtn);
     // Hidden password prompt container
     const pwdContainer = document.createElement("div");
@@ -829,6 +840,11 @@ function showPasswordPrompt(index) {
 }
 
 function showCreateProfileForm() {
+  if (profiles.length >= 5) {
+    alert("Profile limit reached (5)");
+    showLoginScreen();
+    return;
+  }
   const overlay = document.getElementById("login-screen");
   const container = overlay.querySelector(".login-container");
   container.innerHTML = "";
@@ -857,6 +873,11 @@ function showCreateProfileForm() {
   form.append(nameInput, passInput, requireToggle, submitBtn, cancelBtn);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    if (profiles.length >= 5) {
+      alert("Profile limit reached (5)");
+      showLoginScreen();
+      return;
+    }
     const name = nameInput.value.trim();
     if (!name) return;
     const pwd = passInput.value.trim() || null;
