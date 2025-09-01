@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openProcesses() {
-  console.warn('processes app not implemented');
+  openAppWindow('processes', 'System Processes');
 }

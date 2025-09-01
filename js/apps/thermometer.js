@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openTempConverter() {
-  console.warn('thermometer app not implemented');
+  openAppWindow('thermometer', 'Temperature');
 }

@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openNotepad() {
-  console.warn('notepad app not implemented');
+  openAppWindow('notepad', 'Notepad');
 }

@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openGallery() {
-  console.warn('gallery app not implemented');
+  openAppWindow('gallery', 'Gallery');
 }

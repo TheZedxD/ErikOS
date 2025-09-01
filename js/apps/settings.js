@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openSettings() {
-  console.warn('settings app not implemented');
+  openAppWindow('settings', 'Settings');
 }

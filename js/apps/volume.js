@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openSoundAdjuster() {
-  console.warn('volume app not implemented');
+  openAppWindow('volume', 'Volume');
 }

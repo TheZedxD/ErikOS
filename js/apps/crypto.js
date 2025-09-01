@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openCrypto() {
-  console.warn('crypto app not implemented');
+  openAppWindow('crypto', 'Crypto Portfolio');
 }

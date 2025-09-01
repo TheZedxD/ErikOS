@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openLogs() {
-  console.warn('logs app not implemented');
+  openAppWindow('logs', 'Logs');
 }

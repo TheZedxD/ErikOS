@@ -1,15 +1,34 @@
-// Simple wrapper around fetch to communicate with the ErikOS backend
-// adding the X-User-Id header and convenient JSON helpers.
+// Fetch helpers for ErikOS backend APIs.
+// Automatically includes X-User-Id header from currentUser.
 
-export async function apiFetch(url, options = {}) {
-  const opts = { ...options };
-  opts.headers = { 'X-User-Id': window.currentUserId || 'guest', ...(opts.headers || {}) };
-  const resp = await fetch(url, opts);
-  if (!resp.ok) throw new Error(`Request failed: ${resp.status}`);
-  return resp;
+import { currentUser } from '../core/globals.js';
+
+function userHeader() {
+  return { 'X-User-Id': currentUser ? currentUser.id : '' };
 }
 
-export async function apiJson(url, options = {}) {
-  const resp = await apiFetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+export async function getJSON(url) {
+  const resp = await fetch(url, { headers: userHeader() });
+  if (!resp.ok) throw new Error(`GET ${url} failed: ${resp.status}`);
+  return resp.json();
+}
+
+export async function postJSON(url, data) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...userHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!resp.ok) throw new Error(`POST ${url} failed: ${resp.status}`);
+  return resp.json();
+}
+
+export async function uploadForm(url, formData) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: userHeader(),
+    body: formData,
+  });
+  if (!resp.ok) throw new Error(`POST ${url} failed: ${resp.status}`);
   return resp.json();
 }

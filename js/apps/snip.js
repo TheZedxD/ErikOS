@@ -1,3 +1,5 @@
+import { openAppWindow } from '../utils/appWindow.js';
+
 export function openSnipTool() {
-  console.warn('snip tool app not implemented');
+  openAppWindow('snip', 'Snip');
 }
