@@ -1288,7 +1288,10 @@ function initDesktop() {
       // Attach drag functionality with launch-on-click behaviour
       attachIconDrag(icon, app);
     } else {
-      // Grid layout with snapping and persisted positions
+      // ERIKOS: Grid layout with snapping and persisted positions
+      const gridW = 90,
+        gridH = 100,
+        margin = 8; // ERIKOS: grid metrics
       if (currentUser && !currentUser.iconPositions) currentUser.iconPositions = {};
       let pos = currentUser && currentUser.iconPositions
         ? currentUser.iconPositions[app.id]
@@ -1296,8 +1299,8 @@ function initDesktop() {
       if (!pos) {
         const col = freeIndex % 6;
         const row = Math.floor(freeIndex / 6);
-        const x = 20 + col * 90;
-        const y = 20 + row * 100;
+        const x = margin + col * gridW;
+        const y = margin + row * gridH;
         pos = { x, y };
         if (currentUser && currentUser.iconPositions) {
           currentUser.iconPositions[app.id] = pos;
@@ -1307,7 +1310,7 @@ function initDesktop() {
       icon.style.left = pos.x + "px";
       icon.style.top = pos.y + "px";
       clampIconPosition(icon);
-      attachGridDrag(icon, app);
+      attachIconDragGrid(icon, app, gridW, gridH, margin);
     }
     // Single click focuses icon
     icon.addEventListener("click", (e) => {
@@ -1459,30 +1462,17 @@ function attachIconDrag(icon, app) {
   });
 }
 
-// Drag handler for grid layout: snaps icons to a fixed grid
-function attachGridDrag(icon, app) {
-  const cellW = 90;
-  const cellH = 100;
-  const offsetX = 20;
-  const offsetY = 20;
+// ERIKOS: Drag handler for grid layout with snapping and persistence
+function attachIconDragGrid(icon, app, gridW = 90, gridH = 100, margin = 8) {
   let startX, startY, startLeft, startTop, moved;
   const onMove = (e) => {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (!moved && Math.hypot(dx, dy) > 5) moved = true;
     if (!moved) return;
-    let newLeft = startLeft + dx;
-    let newTop = startTop + dy;
-    const desktopRect = document
-      .getElementById("desktop")
-      .getBoundingClientRect();
-    const iconRect = icon.getBoundingClientRect();
-    const maxLeft = desktopRect.width - iconRect.width - offsetX;
-    const maxTop = desktopRect.height - iconRect.height - offsetY;
-    newLeft = Math.min(Math.max(offsetX, newLeft), maxLeft);
-    newTop = Math.min(Math.max(offsetY, newTop), maxTop);
-    icon.style.left = `${newLeft}px`;
-    icon.style.top = `${newTop}px`;
+    icon.style.left = `${startLeft + dx}px`;
+    icon.style.top = `${startTop + dy}px`;
+    clampIconPosition(icon); // ERIKOS: keep within desktop bounds
   };
   const onUp = () => {
     document.removeEventListener("pointermove", onMove);
@@ -1491,13 +1481,15 @@ function attachGridDrag(icon, app) {
     if (!moved) {
       app.launch();
     } else if (currentUser && currentUser.iconPositions) {
-      let x = parseInt(icon.style.left, 10) || offsetX;
-      let y = parseInt(icon.style.top, 10) || offsetY;
-      x = Math.round((x - offsetX) / cellW) * cellW + offsetX;
-      y = Math.round((y - offsetY) / cellH) * cellH + offsetY;
-      icon.style.left = `${x}px`;
-      icon.style.top = `${y}px`;
-      currentUser.iconPositions[app.id] = { x, y };
+      const left = parseInt(icon.style.left, 10) || margin;
+      const top = parseInt(icon.style.top, 10) || margin;
+      const snappedLeft =
+        Math.round((left - margin) / gridW) * gridW + margin;
+      const snappedTop = Math.round((top - margin) / gridH) * gridH + margin;
+      icon.style.left = `${snappedLeft}px`;
+      icon.style.top = `${snappedTop}px`;
+      clampIconPosition(icon);
+      currentUser.iconPositions[app.id] = { x: snappedLeft, y: snappedTop };
       saveProfiles(profiles);
     }
   };
@@ -1506,8 +1498,8 @@ function attachGridDrag(icon, app) {
     if (!currentUser || currentUser.iconLayout !== "grid") return;
     startX = e.clientX;
     startY = e.clientY;
-    startLeft = parseInt(icon.style.left, 10) || offsetX;
-    startTop = parseInt(icon.style.top, 10) || offsetY;
+    startLeft = parseInt(icon.style.left, 10) || margin;
+    startTop = parseInt(icon.style.top, 10) || margin;
     moved = false;
     icon.classList.add("dragging");
     document.addEventListener("pointermove", onMove);

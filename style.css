@@ -431,15 +431,16 @@ body {
   user-select: none;
 }
 
-/* Grid layout styles for desktop icons */
+/* ERIKOS: Grid layout uses absolute positioning with padding for snapping */
 #desktop[data-layout="grid"] {
-  /* Absolute positioning allows drag snapping while preserving retro look */
   position: relative;
+  display: block; /* ERIKOS: stop flex-based flow so absolute positions work */
+  padding: 8px; /* ERIKOS: margin around grid */
 }
 
 #desktop[data-layout="grid"] .icon {
   position: absolute;
-  margin: 0;
+  margin: 0; /* ERIKOS: avoid extra drift */
 }
 
 /* Chat application styles */
