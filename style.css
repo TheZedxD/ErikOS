@@ -228,6 +228,7 @@ body {
   width: 100%;
   height: calc(100% - 40px);
   overflow: hidden;
+  background: var(--desktop-bg) url('/images/wallpaper.png') center/cover no-repeat;
 }
 
 /* Taskbar */
@@ -421,14 +422,15 @@ body {
 }
 
 /* Desktop icons */
-.icon {
+#desktop .desktop-icon {
   position: absolute;
-  width: 72px;
+  width: 88px;
+  text-align: center;
+  user-select: none;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: pointer;
-  user-select: none;
 }
 
 /* ERIKOS: Grid layout uses absolute positioning with padding for snapping */
@@ -438,7 +440,7 @@ body {
   padding: 8px; /* ERIKOS: margin around grid */
 }
 
-#desktop[data-layout="grid"] .icon {
+#desktop[data-layout="grid"] .desktop-icon {
   position: absolute;
   margin: 0; /* ERIKOS: avoid extra drift */
 }
@@ -515,20 +517,21 @@ body {
 }
 
 /* Visual feedback when dragging icons */
-.icon.dragging {
+#desktop .desktop-icon.dragging {
   opacity: 0.7;
   pointer-events: none;
 }
-
-.icon img {
-  width: 48px;
-  height: 48px;
+#desktop .desktop-icon img {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  object-fit: contain;
 }
 
-.icon span {
+#desktop .desktop-icon .label {
+  display: block;
+  font: 12px/1.2 "MS Sans Serif", system-ui;
   margin-top: 4px;
-  text-align: center;
-  font-size: 12px;
   color: var(--icon-text);
 }
 

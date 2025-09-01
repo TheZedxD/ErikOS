@@ -1,10 +1,17 @@
+import { ASSET_BASE } from "../../config.js";
 export function buildStartMenu(apps, launcher){
   const ul = document.getElementById("start-app-list"); if (!ul) return;
   ul.innerHTML = "";
   for (const a of apps){
     const li = document.createElement("li");
-    li.textContent = a.meta.name;
-    li.addEventListener("click", ()=> launcher.launch(a.meta.id));
+    li.innerHTML = `<img alt=""><span></span>`;
+    li.querySelector("img").src = a.icon.startsWith("http") ? a.icon : `${ASSET_BASE}/${a.icon.replace(/^\//,'')}`;
+    li.querySelector("span").textContent = a.title;
+    if(!a.comingSoon){
+      li.addEventListener("click", ()=> launcher.launch(a.id));
+    } else {
+      li.classList.add("coming-soon");
+    }
     ul.appendChild(li);
   }
 }
