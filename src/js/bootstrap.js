@@ -45,7 +45,7 @@ export function bootstrap(){
 
   console.time("start");
   buildStartMenu(apps, launcher);
-  wireStartToggle();
+  wireStartToggle(launcher, apps);
   console.timeEnd("start");
 
   console.time("tray");
