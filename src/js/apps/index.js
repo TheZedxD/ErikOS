@@ -19,6 +19,8 @@ import * as profiles from './profiles.js';
 import * as chat from './chat.js';
 import * as sheets from './sheets.js';
 import * as crypto from './crypto.js';
+import * as diagnostics from './diagnostics.js';
+import * as snip from './snip.js';
 
 export const apps = [
   notepad,
@@ -42,4 +44,6 @@ export const apps = [
   chat,
   sheets,
   crypto,
+  diagnostics,
+  snip,
 ];
