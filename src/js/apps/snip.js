@@ -1,3 +1,5 @@
+import { APIClient } from '../utils/api.js';
+
 export const meta = { id: 'snip', name: 'Snip', icon: '/icons/gallery.png' };
 
 export function launch(ctx) {
@@ -6,6 +8,7 @@ export function launch(ctx) {
 
 export function mount(winEl, ctx) {
   addLog('Snip tool activated');
+  const api = new APIClient(ctx);
   const overlay = document.getElementById('snip-overlay');
   if (!overlay || overlay.style.display === 'block') return;
   overlay.style.display = 'block';
@@ -67,8 +70,8 @@ export function mount(winEl, ctx) {
         const fd = new FormData();
         fd.append('path', path);
         fd.append('file', blob, `snip-${Date.now()}.png`);
-        const res = await apiJSON('/api/upload', { method: 'POST', body: fd });
-        if (res.ok) {
+        const res = await api.post('/api/upload', fd);
+        if (res.ok && res.data.ok !== false) {
           showToast('Saved to Screenshots/');
         } else {
           const a = document.createElement('a');

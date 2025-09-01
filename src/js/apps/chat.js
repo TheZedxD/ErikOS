@@ -1,3 +1,4 @@
+import { APIClient } from '../utils/api.js';
 
 export const meta = { id: 'chat', name: 'Chat', icon: '/icons/chat.png' };
 export function launch(ctx) {
@@ -9,6 +10,8 @@ export function launch(ctx) {
 export function mount(winEl, ctx) {
   addLog('Chat opened');
   applyChatColors();
+
+  const api = new APIClient(ctx);
 
   const container = winEl.classList.contains('window')
     ? winEl.querySelector('.content')
@@ -48,6 +51,9 @@ export function mount(winEl, ctx) {
   container.append(historyPanel, chatPanel);
 
   if (!currentUser.conversations) currentUser.conversations = [];
+  const historyRespPromise = currentUser
+    ? api.getJSON(`/api/ollama/history/${currentUser.id}`).catch(() => ({ ok: false }))
+    : Promise.resolve({ ok: false });
   let currentConversation = null;
 
   function renderConversationList() {
@@ -87,6 +93,24 @@ export function mount(winEl, ctx) {
       convList.append(item);
     });
   }
+
+  historyRespPromise.then((res) => {
+    if (res.ok && Array.isArray(res.data.history) && res.data.history.length) {
+      const conv = {
+        id: Date.now(),
+        title: 'Previous',
+        messages: res.data.history,
+        timestamp: new Date().toISOString(),
+      };
+      const hadConvs = currentUser.conversations.length > 0;
+      currentUser.conversations.unshift(conv);
+      if (!hadConvs) {
+        loadConversation(conv);
+      } else {
+        renderConversationList();
+      }
+    }
+  });
 
   function generateTitle(message) {
     return message.slice(0, 30) + (message.length > 30 ? '...' : '');
@@ -141,9 +165,10 @@ export function mount(winEl, ctx) {
 
     async function fetchModels() {
       try {
-        const res = await fetch('/api/ollama/models');
-        const data = await res.json();
+        const res = await api.getJSON('/api/ollama/models');
         modelSelect.innerHTML = '';
+        if (!res.ok) throw new Error();
+        const data = res.data;
         const models = Array.isArray(data.models) ? data.models : [];
         if (models.length) {
           models.forEach((name) => {
@@ -152,6 +177,7 @@ export function mount(winEl, ctx) {
             opt.textContent = name;
             modelSelect.append(opt);
           });
+          if (data.defaultText) modelSelect.value = data.defaultText;
           modelSelect.disabled = false;
         } else {
           const opt = document.createElement('option');
@@ -213,28 +239,21 @@ export function mount(winEl, ctx) {
       const placeholder = msgList.lastChild;
       const selectedModel = modelSelect.value || 'llama2';
       try {
-        const res = await fetch('/api/ollama/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: selectedModel,
-            prompt: msg,
-            history: currentConversation.messages,
-            image: imageData,
-            profile: currentUser ? currentUser.name : null,
-          }),
+        const res = await api.postJSON('/api/ollama/chat', {
+          model: selectedModel,
+          prompt: msg,
+          history: currentConversation.messages,
+          image: imageData,
+          profile: currentUser ? currentUser.id : null,
         });
-        const data = await res.json();
         placeholder.remove();
-        if (data.error) {
-          appendMessage('assistant', 'Error: ' + data.error);
+        if (!res.ok || res.data.error) {
+          appendMessage('assistant', 'Error: ' + (res.data && res.data.error ? res.data.error : res.error));
         } else {
+          const data = res.data;
           const respText = data.response || '';
           appendMessage('assistant', respText);
-          currentConversation.messages.push({
-            role: 'assistant',
-            content: respText,
-          });
+          currentConversation.messages = data.history || currentConversation.messages;
           saveProfiles(profiles);
           renderConversationList();
         }
@@ -361,17 +380,16 @@ export function mount(winEl, ctx) {
     async function loadModelList() {
       modelList.innerHTML = '';
       try {
-        const res = await fetch('/api/ollama/models');
-        const data = await res.json();
-        if (data.models && data.models.length) {
-          data.models.forEach((m) => {
+        const res = await api.getJSON('/api/ollama/models');
+        if (res.ok && res.data.models && res.data.models.length) {
+          res.data.models.forEach((m) => {
             const li = document.createElement('li');
             li.textContent = m;
             modelList.append(li);
           });
         } else {
           const li = document.createElement('li');
-          li.textContent = data.error || 'No models';
+          li.textContent = (res.data && res.data.error) || 'No models';
           modelList.append(li);
         }
       } catch (err) {
@@ -390,27 +408,21 @@ export function mount(winEl, ctx) {
       output.textContent = '';
       progress.style.display = 'block';
       try {
-        const res = await fetch('/api/execute-command', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: `ollama pull ${name}` }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.job_id) throw new Error(data.error || 'Failed');
-        const jobId = data.job_id;
+        const res = await api.postJSON('/api/execute-command', { command: `ollama pull ${name}` });
+        if (!res.ok || !res.data.job_id) throw new Error(res.data?.error || res.error || 'Failed');
+        const jobId = res.data.job_id;
         const timer = setInterval(async () => {
-          const sres = await fetch(`/api/command-status/${jobId}`);
-          const sdata = await sres.json();
-          if (sdata.status === 'finished') {
+          const sres = await api.getJSON(`/api/command-status/${jobId}`);
+          if (sres.ok && sres.data.status === 'finished') {
             clearInterval(timer);
             progress.style.display = 'none';
             modelInput.disabled = false;
             pullBtn.disabled = false;
-            if (sdata.returncode === 0) {
+            if (sres.data.returncode === 0) {
               await loadModelList();
               renderChatArea();
             } else {
-              output.textContent = sdata.output || 'Error';
+              output.textContent = sres.data.output || 'Error';
             }
           }
         }, 1000);

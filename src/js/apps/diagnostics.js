@@ -1,3 +1,5 @@
+import { APIClient } from '../utils/api.js';
+
 export const meta = { id: 'diagnostics', name: 'Diagnostics', icon: '/icons/settings-icon.png' };
 
 export function launch(ctx) {
@@ -11,9 +13,11 @@ export function mount(winEl, ctx) {
   const container = winEl;
   container.style.padding = '8px';
   container.textContent = 'Running diagnostics...';
-  fetch('/api/diagnostics/run')
-    .then(r => r.json())
-    .then(data => {
+  const api = new APIClient(ctx);
+  api.getJSON('/api/diagnostics/run')
+    .then(res => {
+      if (!res.ok) throw new Error(res.error);
+      const data = res.data;
       container.innerHTML = '';
       if (data.issues && data.issues.length) {
         const list = document.createElement('ul');

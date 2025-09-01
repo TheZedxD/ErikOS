@@ -1,4 +1,6 @@
 
+import { APIClient } from '../utils/api.js';
+
 export const meta = { id: 'processes', name: 'System Processes', icon: '/icons/processes.png' };
 export function launch(ctx) {
   const content = document.createElement('div');
@@ -11,6 +13,8 @@ export function mount(winEl, ctx) {
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.height = '100%';
+
+  const api = new APIClient(ctx);
 
   const tabs = document.createElement('div');
   tabs.classList.add('settings-tabs');
@@ -58,10 +62,14 @@ export function mount(winEl, ctx) {
 
   async function load() {
     try {
-      const statsResp = await fetch('/api/system-stats');
-      const stats = await statsResp.json();
-      cpuText.textContent = `CPU Usage: ${stats.cpu}%`;
-      ramText.textContent = `RAM Usage: ${stats.ram}%`;
+      const statsResp = await api.getJSON('/api/system-stats');
+      if (statsResp.ok) {
+        const stats = statsResp.data;
+        cpuText.textContent = `CPU Usage: ${stats.cpu}%`;
+        ramText.textContent = `RAM Usage: ${stats.ram}%`;
+      } else {
+        throw new Error();
+      }
     } catch {
       cpuText.textContent = 'CPU Usage: n/a';
       ramText.textContent = 'RAM Usage: n/a';
@@ -69,8 +77,9 @@ export function mount(winEl, ctx) {
 
     scriptsSection.innerHTML = '<h3>Running Scripts</h3>';
     try {
-      const resp = await fetch('/api/list-scripts');
-      const data = await resp.json();
+      const resp = await api.getJSON('/api/list-scripts');
+      if (!resp.ok) throw new Error();
+      const data = resp.data;
       if (!Array.isArray(data.processes) || data.processes.length === 0) {
         const p = document.createElement('p');
         p.textContent = 'No running scripts.';
@@ -85,11 +94,7 @@ export function mount(winEl, ctx) {
           stopBtn.textContent = 'Stop';
           stopBtn.addEventListener('click', async () => {
             try {
-              await fetch('/api/stop-script', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pid: proc.pid }),
-              });
+              await api.postJSON('/api/stop-script', { pid: proc.pid });
             } catch {}
             load();
           });

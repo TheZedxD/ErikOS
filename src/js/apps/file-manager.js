@@ -1,6 +1,7 @@
 import * as notepad from './notepad.js';
 import * as gallery from './gallery.js';
 import * as sheets from './sheets.js';
+import { APIClient } from '../utils/api.js';
 
 export const meta = { id: 'file-manager', name: 'File Manager', icon: '/icons/file-manager.png' };
 
@@ -14,6 +15,8 @@ export function launch(ctx) {
 export function mount(winEl, ctx) {
   const container = winEl;
   container.classList.add('file-manager');
+
+  const api = new APIClient(ctx);
 
   const toolbar = document.createElement('div');
   toolbar.classList.add('file-manager-toolbar');
@@ -55,12 +58,11 @@ export function mount(winEl, ctx) {
   async function newFolder() {
     const name = prompt('Folder name');
     if (!name) return;
-    const result = await apiJSON('/api/create-folder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentPath, name }),
+    const result = await api.postJSON('/api/create-folder', {
+      path: currentPath,
+      name,
     });
-    if (!result.ok) alert(result.error);
+    if (!result.ok || result.data.ok === false) alert(result.error || result.data.error);
     loadDirectory(currentPath);
   }
 
@@ -68,24 +70,19 @@ export function mount(winEl, ctx) {
     if (!selected) return alert('Select an item first');
     const newName = prompt('New name', selected.name);
     if (!newName) return;
-    const result = await apiJSON('/api/rename', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: selected.path, new_name: newName }),
+    const result = await api.postJSON('/api/rename', {
+      path: selected.path,
+      new_name: newName,
     });
-    if (!result.ok) alert(result.error);
+    if (!result.ok || result.data.ok === false) alert(result.error || result.data.error);
     loadDirectory(currentPath);
   }
 
   async function deleteItem() {
     if (!selected) return alert('Select an item first');
     if (!confirm('Delete ' + selected.name + '?')) return;
-    const result = await apiJSON('/api/delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: selected.path }),
-    });
-    if (!result.ok) alert(result.error);
+    const result = await api.postJSON('/api/delete', { path: selected.path });
+    if (!result.ok || result.data.ok === false) alert(result.error || result.data.error);
     loadDirectory(currentPath);
   }
 
@@ -99,8 +96,8 @@ export function mount(winEl, ctx) {
       const fd = new FormData();
       fd.append('path', currentPath);
       fd.append('file', file);
-      const result = await apiJSON('/api/upload', { method: 'POST', body: fd });
-      if (!result.ok) alert(result.error);
+      const result = await api.post('/api/upload', fd);
+      if (!result.ok || result.data.ok === false) alert(result.error || result.data.error);
       loadDirectory(currentPath);
     });
     inp.click();
@@ -115,14 +112,14 @@ export function mount(winEl, ctx) {
   };
 
   async function loadDirectory(path) {
-    const resp = await apiJSON(
+    const resp = await api.getJSON(
       `/api/list-directory?path=${encodeURIComponent(path)}`
     );
-    if (!resp.ok) {
-      details.textContent = resp.error || 'Failed to load directory';
+    if (!resp.ok || resp.data.ok === false) {
+      details.textContent = resp.error || resp.data.error || 'Failed to load directory';
       return;
     }
-    const data = resp.data;
+    const data = resp.data.data || resp.data;
     currentPath = data.path;
     currentItems = data.items;
     renderTreeRoot();
@@ -143,11 +140,11 @@ export function mount(winEl, ctx) {
     if (elem.dataset.loaded) return;
     elem.dataset.loaded = '1';
     try {
-      const resp = await apiJSON(
+      const resp = await api.getJSON(
         `/api/list-directory?path=${encodeURIComponent(path)}`
       );
-      if (!resp.ok) return;
-      const data = resp.data;
+      if (!resp.ok || resp.data.ok === false) return;
+      const data = resp.data.data || resp.data;
       const children = document.createElement('div');
       children.classList.add('tree-children');
       data.items
@@ -203,24 +200,27 @@ export function mount(winEl, ctx) {
     const ext = item.name.split('.').pop().toLowerCase();
     try {
       if (['txt', 'js', 'json', 'md'].includes(ext)) {
-        const res = await fetch('/' + item.path);
-        if (!res.ok) throw new Error('Failed to load file');
-        const text = await res.text();
-        notepad.launch(ctx, text);
+        const res = await api.get('/' + item.path, {}, 'text');
+        if (!res.ok) throw new Error(res.error);
+        notepad.launch(ctx, res.data);
       } else if (['png', 'jpg', 'jpeg', 'gif', 'bmp'].includes(ext)) {
-        gallery.launch(ctx, ['/' + item.path]);
+        const res = await api.get('/' + item.path, {}, 'blob');
+        if (!res.ok) throw new Error(res.error);
+        const url = URL.createObjectURL(res.data);
+        gallery.launch(ctx, [url]);
       } else if (ext === 'csv') {
-        const res = await fetch('/' + item.path);
-        if (!res.ok) throw new Error('Failed to load file');
-        const text = await res.text();
-        sheets.launch(ctx, { type: 'csv', name: item.name.replace(/\.csv$/, ''), content: text });
+        const res = await api.get('/' + item.path, {}, 'text');
+        if (!res.ok) throw new Error(res.error);
+        sheets.launch(ctx, { type: 'csv', name: item.name.replace(/\.csv$/, ''), content: res.data });
       } else if (ext === 'xlsx') {
-        const res = await fetch('/' + item.path);
-        if (!res.ok) throw new Error('Failed to load file');
-        const buf = await res.arrayBuffer();
-        sheets.launch(ctx, { type: 'xlsx', content: buf });
+        const res = await api.get('/' + item.path, {}, 'arrayBuffer');
+        if (!res.ok) throw new Error(res.error);
+        sheets.launch(ctx, { type: 'xlsx', content: res.data });
       } else {
-        window.open('/' + item.path, '_blank');
+        const res = await api.get('/' + item.path, {}, 'blob');
+        if (!res.ok) throw new Error(res.error);
+        const url = URL.createObjectURL(res.data);
+        window.open(url, '_blank');
       }
     } catch (err) {
       alert('Unable to open file: ' + err);
