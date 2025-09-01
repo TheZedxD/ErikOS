@@ -15,6 +15,7 @@ export class APIClient {
   }
 
   async request(endpoint, options = {}, responseType = 'json') {
+    const start = performance.now();
     try {
       const opts = { ...options };
       const headers = { ...(opts.headers || {}) };
@@ -38,9 +39,10 @@ export class APIClient {
         default:
           data = await res.json();
       }
+      console.debug('API', endpoint, 'took', Math.round(performance.now() - start), 'ms');
       return { ok: true, data };
     } catch (err) {
-      console.error('API error', endpoint, err);
+      console.error('API error', { endpoint, options }, err);
       return { ok: false, error: String(err) };
     }
   }

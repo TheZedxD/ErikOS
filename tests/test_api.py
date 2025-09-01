@@ -29,6 +29,20 @@ def test_list_icons(client):
     assert isinstance(data.get("icons"), list)
 
 
+def test_health_endpoint(client):
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data.get("ok") is True
+
+
+def test_version_endpoint(client):
+    resp = client.get("/api/version")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "version" in data
+
+
 def test_file_manager_invalid_paths(client):
     headers = {"X-User-Id": "tester"}
     resp = client.get("/api/list-directory", query_string={"path": "../"}, headers=headers)

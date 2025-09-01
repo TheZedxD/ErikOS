@@ -248,6 +248,10 @@ export class WindowManager {
       idx = (idx + 1) % wins.length;
       this.focusWindow(wins[idx].id);
     }
+    if (e.altKey && e.key === "F4") {
+      e.preventDefault();
+      if (this.activeId) this.closeWindow(this.activeId);
+    }
   }
 
   _ensureInViewport(info) {
