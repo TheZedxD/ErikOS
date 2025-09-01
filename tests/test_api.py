@@ -30,19 +30,26 @@ def test_list_icons(client):
 
 
 def test_file_manager_invalid_paths(client):
-    resp = client.get("/api/list-directory", query_string={"path": "../"})
+    headers = {"X-User-Id": "tester"}
+    resp = client.get("/api/list-directory", query_string={"path": "../"}, headers=headers)
     assert resp.status_code == 400
-    resp = client.post("/api/create-folder", json={"path": "../", "name": "x"})
+    resp = client.post(
+        "/api/create-folder", json={"path": "../", "name": "x"}, headers=headers
+    )
     assert resp.status_code == 400
-    resp = client.post("/api/rename", json={"path": "../a", "new_name": "b"})
+    resp = client.post(
+        "/api/rename", json={"path": "../a", "new_name": "b"}, headers=headers
+    )
     assert resp.status_code == 400
-    resp = client.post("/api/delete", json={"path": "../a"})
+    resp = client.post("/api/delete", json={"path": "../a"}, headers=headers)
     assert resp.status_code == 400
 
 
 def test_windows_style_traversal_blocked(client):
     """Backslashes should be treated as path separators and rejected."""
-    resp = client.get("/api/list-directory", query_string={"path": "..\\"})
+    resp = client.get(
+        "/api/list-directory", query_string={"path": "..\\"}, headers={"X-User-Id": "tester"}
+    )
     assert resp.status_code == 400
     data = resp.get_json()
     assert data.get("error") == "Invalid path"
