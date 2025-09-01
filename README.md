@@ -20,6 +20,7 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 - **Volume** control
 - **Logs** viewer
 - **Profile Manager** for up to 5 users
+- **Switch User / Log Out** directly from the Start menu
 - **Per-user file storage** sandboxed under `DRIVE/users/<id>`
 - **Diagnostics** self-check tool
 

@@ -580,6 +580,19 @@ class WindowManager {
       });
     });
   }
+
+  reset() {
+    this.windows.forEach((info) => {
+      if (info.taskItem && info.taskItem.parentNode)
+        this.taskbar.removeChild(info.taskItem);
+      if (info.element && info.element.parentNode)
+        this.desktop.removeChild(info.element);
+    });
+    this.windows.clear();
+    this.nextId = 1;
+    this.nextZ = 300;
+    this.taskbar.innerHTML = "";
+  }
 }
 
 // Instantiate global window manager
@@ -622,6 +635,17 @@ async function apiJSON(path, options = {}) {
  */
 let profiles = [];
 let currentUser = null;
+
+// References to global event handlers so they can be removed on logout
+let startButtonClickHandler;
+let startMenuOutsideClickHandler;
+let startSearchHandler;
+let contextMenuClickHandler;
+let contextMenuContextHandler;
+let trayIconClickHandler;
+let trayOutsideClickHandler;
+let trayVolClickHandler;
+let spotlightKeyHandler;
 
 function loadProfiles() {
   try {
@@ -937,12 +961,65 @@ function loginUser(profile) {
 }
 
 /**
- * Log out the current user.  Hides desktop and shows the login screen.
+ * Log out the current user and return to the profile selector.
+ * Removes global listeners, closes all windows and reboots the UI.
  */
 function logoutUser() {
+  // Remove global listeners
+  if (spotlightKeyHandler) {
+    document.removeEventListener("keydown", spotlightKeyHandler);
+    spotlightKeyHandler = null;
+  }
+  if (startMenuOutsideClickHandler) {
+    document.removeEventListener("click", startMenuOutsideClickHandler);
+    startMenuOutsideClickHandler = null;
+  }
+  if (startButtonClickHandler) {
+    const startButton = document.getElementById("start-button");
+    if (startButton)
+      startButton.removeEventListener("click", startButtonClickHandler);
+    startButtonClickHandler = null;
+  }
+  if (startSearchHandler) {
+    const searchInput = document.getElementById("start-search");
+    if (searchInput)
+      searchInput.removeEventListener("input", startSearchHandler);
+    startSearchHandler = null;
+  }
+  if (contextMenuClickHandler) {
+    document.removeEventListener("click", contextMenuClickHandler);
+    contextMenuClickHandler = null;
+  }
+  if (contextMenuContextHandler) {
+    document.removeEventListener("contextmenu", contextMenuContextHandler);
+    contextMenuContextHandler = null;
+  }
+  if (trayOutsideClickHandler) {
+    document.removeEventListener("click", trayOutsideClickHandler);
+    trayOutsideClickHandler = null;
+  }
+  if (trayIconClickHandler) {
+    const trayIcon = document.getElementById("tray-links-icon");
+    if (trayIcon) trayIcon.removeEventListener("click", trayIconClickHandler);
+    trayIconClickHandler = null;
+  }
+  if (trayVolClickHandler) {
+    const trayVolIcon = document.getElementById("tray-volume-icon");
+    if (trayVolIcon) trayVolIcon.removeEventListener("click", trayVolClickHandler);
+    trayVolClickHandler = null;
+  }
+
+  // Reset window manager and other session state
+  windowManager.reset();
+  globalAudioElements.length = 0;
+
+  addLog("User logged out");
+
   currentUser = null;
   localStorage.removeItem("win95-current-user");
-  showLoginScreen();
+
+  // Re-run boot sequence to display login screen
+  boot();
 }
 
 // ------------------
@@ -950,9 +1027,6 @@ function logoutUser() {
 // ------------------
 
 function initSpotlight() {
-  // Prevent multiple initialisations which would bind duplicate event listeners.
-  if (initSpotlight.initialized) return;
-  initSpotlight.initialized = true;
   const overlay = document.getElementById("spotlight-overlay");
   overlay.innerHTML = "";
   // Build the search box and result list
@@ -1016,7 +1090,9 @@ function initSpotlight() {
     }
   });
   // Register global key to toggle overlay (Ctrl+Space)
-  document.addEventListener("keydown", (e) => {
+  if (spotlightKeyHandler)
+    document.removeEventListener("keydown", spotlightKeyHandler);
+  spotlightKeyHandler = (e) => {
     if (e.ctrlKey && e.code === "Space") {
       e.preventDefault();
       const visible =
@@ -1029,7 +1105,8 @@ function initSpotlight() {
         input.focus();
       }
     }
-  });
+  };
+  document.addEventListener("keydown", spotlightKeyHandler);
 }
 
 /**
@@ -1374,11 +1451,16 @@ function initDesktop() {
   }
   populateStartMenu();
 
-  searchInput.addEventListener("input", () => {
+  if (startSearchHandler)
+    searchInput.removeEventListener("input", startSearchHandler);
+  startSearchHandler = () => {
     populateStartMenu(searchInput.value);
-  });
+  };
+  searchInput.addEventListener("input", startSearchHandler);
 
-  startButton.addEventListener("click", (e) => {
+  if (startButtonClickHandler)
+    startButton.removeEventListener("click", startButtonClickHandler);
+  startButtonClickHandler = (e) => {
     e.stopPropagation();
     const visible =
       startMenu.style.display === "flex" || startMenu.style.display === "block";
@@ -1388,14 +1470,30 @@ function initDesktop() {
       startMenu.style.display = "flex";
       searchInput.focus();
     }
-  });
+  };
+  startButton.addEventListener("click", startButtonClickHandler);
 
   // Hide start menu when clicking outside
-  document.addEventListener("click", (e) => {
+  if (startMenuOutsideClickHandler)
+    document.removeEventListener("click", startMenuOutsideClickHandler);
+  startMenuOutsideClickHandler = (e) => {
     if (!startMenu.contains(e.target) && e.target !== startButton) {
       startMenu.style.display = "none";
     }
+  };
+  document.addEventListener("click", startMenuOutsideClickHandler);
+
+  // Add logout button to start menu
+  const existingLogout = document.getElementById("start-logout-btn");
+  if (existingLogout) existingLogout.remove();
+  const logoutBtn = document.createElement("button");
+  logoutBtn.id = "start-logout-btn";
+  logoutBtn.textContent = "Switch User / Log Out";
+  logoutBtn.addEventListener("click", () => {
+    startMenu.style.display = "none";
+    logoutUser();
   });
+  startMenu.append(logoutBtn);
 }
 
 /**
@@ -1540,12 +1638,16 @@ function initContextMenu() {
     menu.style.display = "none";
     menu.innerHTML = "";
   }
-
-  document.addEventListener("click", (e) => {
+  if (contextMenuClickHandler)
+    document.removeEventListener("click", contextMenuClickHandler);
+  contextMenuClickHandler = (e) => {
     if (!menu.contains(e.target)) hideMenu();
-  });
+  };
+  document.addEventListener("click", contextMenuClickHandler);
 
-  document.addEventListener("contextmenu", (e) => {
+  if (contextMenuContextHandler)
+    document.removeEventListener("contextmenu", contextMenuContextHandler);
+  contextMenuContextHandler = (e) => {
     e.preventDefault();
     hideMenu();
     const target = e.target;
@@ -1635,7 +1737,8 @@ function initContextMenu() {
     menu.style.left = `${e.pageX}px`;
     menu.style.top = `${e.pageY}px`;
     menu.style.display = "block";
-  });
+  };
+  document.addEventListener("contextmenu", contextMenuContextHandler);
 }
 
 /**
@@ -1651,7 +1754,8 @@ function initTray() {
   const trayVolIcon = document.getElementById("tray-volume-icon");
   if (!trayIcon || !trayMenu) return;
   // Toggle menu on icon click
-  trayIcon.addEventListener("click", (e) => {
+  if (trayIconClickHandler) trayIcon.removeEventListener("click", trayIconClickHandler);
+  trayIconClickHandler = (e) => {
     e.stopPropagation();
     if (trayMenu.style.display === "block") {
       trayMenu.style.display = "none";
@@ -1659,20 +1763,27 @@ function initTray() {
       populateTrayMenu();
       trayMenu.style.display = "block";
     }
-  });
+  };
+  trayIcon.addEventListener("click", trayIconClickHandler);
   // Hide menu when clicking outside
-  document.addEventListener("click", (e) => {
+  if (trayOutsideClickHandler)
+    document.removeEventListener("click", trayOutsideClickHandler);
+  trayOutsideClickHandler = (e) => {
     if (!trayMenu.contains(e.target) && e.target !== trayIcon) {
       trayMenu.style.display = "none";
     }
-  });
+  };
+  document.addEventListener("click", trayOutsideClickHandler);
 
   // Volume icon opens the volume control application
   if (trayVolIcon) {
-    trayVolIcon.addEventListener("click", (e) => {
+    if (trayVolClickHandler)
+      trayVolIcon.removeEventListener("click", trayVolClickHandler);
+    trayVolClickHandler = (e) => {
       e.stopPropagation();
       openSoundAdjuster();
-    });
+    };
+    trayVolIcon.addEventListener("click", trayVolClickHandler);
   }
 }
 
@@ -2852,9 +2963,10 @@ function setTheme(name) {
 }
 
 // Initialise desktop when DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
-  // Apply any globally persisted settings.  These are used only when no user
-  // profile is active.  For logged-in users, their theme and wallpaper
+
+function boot() {
+  // Apply any globally persisted settings. These are used only when no user
+  // profile is active. For logged-in users, their theme and wallpaper
   // settings are applied after login.
   applyPersistedSettings();
   // Load profiles from storage and decide whether to show the login screen
@@ -2873,9 +2985,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   // Context menu is initialised after login because it relies on the
-  // desktop and applications being present.  The login workflow calls
+  // desktop and applications being present. The login workflow calls
   // initContextMenu() itself.
-});
+}
+
+document.addEventListener("DOMContentLoaded", boot);
 
 // ---------------------------------------------------------------------------
 // Additional global utilities: audio management and logging
@@ -3913,11 +4027,7 @@ function openProfileManager() {
       const logoutBtn = document.createElement("button");
       logoutBtn.textContent = "Log Out";
       logoutBtn.addEventListener("click", () => {
-        // Remove current user marker and show login screen
-        localStorage.removeItem("win95-current-user");
-        currentUser = null;
-        addLog("User logged out");
-        showLoginScreen();
+        logoutUser();
       });
       row.append(nameSpan, renameBtn, deleteBtn, switchBtn);
       if (profile.id === currentUser.id) {
