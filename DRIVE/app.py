@@ -695,7 +695,7 @@ def execute_command():
     return jsonify({"job_id": job_id})
 
 
-@app.route("/api/command-status/<job_id>")
+@app.get("/api/command-status/<job_id>")
 def command_status(job_id: str):
     job = command_jobs.get(job_id)
     if not job:
