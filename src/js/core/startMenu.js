@@ -19,9 +19,10 @@ export function wireStartToggle(){
   const btn = document.getElementById("start-button");
   const menu = document.getElementById("start-menu");
   if (!btn || !menu) return;
-  const toggle = ()=>menu.setAttribute("aria-hidden",
-    menu.getAttribute("aria-hidden")!=="false"?"false":"true");
-  btn.addEventListener("click", toggle);
-  document.addEventListener("keydown", e=>{ if (e.key==="Escape") menu.setAttribute("aria-hidden","true");});
-  document.addEventListener("click", e=>{ if (!menu.contains(e.target) && e.target!==btn) menu.setAttribute("aria-hidden","true"); });
+  menu.setAttribute("role","menu");
+  const open = ()=>{ menu.hidden = false; };
+  const close = ()=>{ menu.hidden = true; };
+  btn.addEventListener("click", e=>{ e.stopPropagation(); menu.hidden ? open() : close(); });
+  document.addEventListener("keydown", e=>{ if (e.key==="Escape") close(); });
+  document.addEventListener("click", e=>{ if (!menu.contains(e.target) && e.target!==btn) close(); });
 }

@@ -164,9 +164,12 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* Classic 3D styling for buttons and similar controls */
 button,
-.taskbar-item,
 #system-clock,
 #system-tray img,
 .link-tree li button {
@@ -180,7 +183,6 @@ button,
 }
 
 button:active,
-.taskbar-item:active,
 #system-clock:active,
 #system-tray img:active,
 .link-tree li button:active {
@@ -229,6 +231,16 @@ body {
   height: calc(100% - 40px);
   overflow: hidden;
   background: var(--desktop-bg) url('/images/wallpaper.png') center/cover no-repeat;
+  z-index: 0;
+}
+
+#windows-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 40px);
+  z-index: 100;
 }
 
 /* Taskbar */
@@ -243,7 +255,7 @@ body {
   border-bottom: 2px solid var(--taskbar-border-dark);
   display: flex;
   align-items: center;
-  z-index: 1000;
+  z-index: 200;
 }
 
 /* System clock displayed on the taskbar */
@@ -331,7 +343,7 @@ body {
 }
 
 /* Individual taskbar button */
-.taskbar-item {
+.task-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -341,11 +353,11 @@ body {
   cursor: pointer;
   font-size: 13px;
   white-space: nowrap;
+  box-shadow: inset 0 0 0 0 #000;
 }
 
-.taskbar-item.active {
-  border-color: #000000 #ffffff #ffffff #000000;
-  padding: 3px 11px 1px 13px;
+.task-btn.active {
+  box-shadow: inset 2px 2px 0 #000, inset -2px -2px 0 #fff;
 }
 
 /* Generic window container */
@@ -537,7 +549,7 @@ body {
 
 /* Start menu (launcher) */
 #start-menu {
-  position: fixed;
+  position: absolute;
   bottom: 40px;
   left: 0;
   width: 240px;
@@ -547,9 +559,10 @@ body {
     0 0 0 1px var(--window-border-light) inset,
     0 0 0 2px var(--window-border-dark) inset;
   padding: 4px;
-  display: none;
   flex-direction: column;
-  z-index: 1500;
+  z-index: 300;
+  overflow: hidden;
+  display: flex;
 }
 
 #start-search {
