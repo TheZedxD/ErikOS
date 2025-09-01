@@ -433,16 +433,13 @@ body {
 
 /* Grid layout styles for desktop icons */
 #desktop[data-layout="grid"] {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  padding: 8px;
+  /* Absolute positioning allows drag snapping while preserving retro look */
+  position: relative;
 }
 
 #desktop[data-layout="grid"] .icon {
-  position: relative;
-  margin: 8px;
+  position: absolute;
+  margin: 0;
 }
 
 /* Chat application styles */

@@ -341,7 +341,10 @@ class WindowManager {
     if (!winInfo) return;
     winInfo.element.style.display = "none";
     winInfo.minimised = true;
-    winInfo.taskItem.classList.add("active");
+    // A minimised window should not appear pressed in the taskbar
+    winInfo.taskItem.classList.remove("active");
+    winInfo.element.classList.remove("active");
+    winInfo.element.classList.add("inactive");
   }
 
   /**
@@ -665,6 +668,29 @@ function applyUserSettings(profile) {
     document.body.style.backgroundImage = `url(${profile.wallpaper})`;
   } else {
     document.body.style.backgroundImage = `url('./images/wallpaper.png')`;
+  }
+}
+
+/**
+ * Apply chat bubble color overrides for the current profile.
+ * Creates or updates a dedicated style tag so changes take effect immediately.
+ */
+function applyChatColors() {
+  const styleId = "chat-color-overrides";
+  const existing = document.getElementById(styleId);
+  if (!currentUser || !currentUser.chatColors) {
+    if (existing) existing.remove();
+    return;
+  }
+  const { userBg, userText, assistantBg, assistantText } = currentUser.chatColors;
+  const css = `.chat-message.user { background: ${userBg}; color: ${userText}; }
+.chat-message.assistant { background: ${assistantBg}; color: ${assistantText}; }`;
+  if (existing) existing.textContent = css;
+  else {
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = css;
+    document.head.appendChild(style);
   }
 }
 
@@ -1262,13 +1288,26 @@ function initDesktop() {
       // Attach drag functionality with launch-on-click behaviour
       attachIconDrag(icon, app);
     } else {
-      // Grid layout: let CSS handle positioning
-      icon.style.left = "";
-      icon.style.top = "";
-      icon.addEventListener("dblclick", (e) => {
-        e.stopPropagation();
-        app.launch();
-      });
+      // Grid layout with snapping and persisted positions
+      if (currentUser && !currentUser.iconPositions) currentUser.iconPositions = {};
+      let pos = currentUser && currentUser.iconPositions
+        ? currentUser.iconPositions[app.id]
+        : null;
+      if (!pos) {
+        const col = freeIndex % 6;
+        const row = Math.floor(freeIndex / 6);
+        const x = 20 + col * 90;
+        const y = 20 + row * 100;
+        pos = { x, y };
+        if (currentUser && currentUser.iconPositions) {
+          currentUser.iconPositions[app.id] = pos;
+        }
+        freeIndex++;
+      }
+      icon.style.left = pos.x + "px";
+      icon.style.top = pos.y + "px";
+      clampIconPosition(icon);
+      attachGridDrag(icon, app);
     }
     // Single click focuses icon
     icon.addEventListener("click", (e) => {
@@ -1413,6 +1452,62 @@ function attachIconDrag(icon, app) {
     startY = e.clientY;
     startLeft = parseInt(icon.style.left, 10) || 0;
     startTop = parseInt(icon.style.top, 10) || 0;
+    moved = false;
+    icon.classList.add("dragging");
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  });
+}
+
+// Drag handler for grid layout: snaps icons to a fixed grid
+function attachGridDrag(icon, app) {
+  const cellW = 90;
+  const cellH = 100;
+  const offsetX = 20;
+  const offsetY = 20;
+  let startX, startY, startLeft, startTop, moved;
+  const onMove = (e) => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!moved && Math.hypot(dx, dy) > 5) moved = true;
+    if (!moved) return;
+    let newLeft = startLeft + dx;
+    let newTop = startTop + dy;
+    const desktopRect = document
+      .getElementById("desktop")
+      .getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
+    const maxLeft = desktopRect.width - iconRect.width - offsetX;
+    const maxTop = desktopRect.height - iconRect.height - offsetY;
+    newLeft = Math.min(Math.max(offsetX, newLeft), maxLeft);
+    newTop = Math.min(Math.max(offsetY, newTop), maxTop);
+    icon.style.left = `${newLeft}px`;
+    icon.style.top = `${newTop}px`;
+  };
+  const onUp = () => {
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    icon.classList.remove("dragging");
+    if (!moved) {
+      app.launch();
+    } else if (currentUser && currentUser.iconPositions) {
+      let x = parseInt(icon.style.left, 10) || offsetX;
+      let y = parseInt(icon.style.top, 10) || offsetY;
+      x = Math.round((x - offsetX) / cellW) * cellW + offsetX;
+      y = Math.round((y - offsetY) / cellH) * cellH + offsetY;
+      icon.style.left = `${x}px`;
+      icon.style.top = `${y}px`;
+      currentUser.iconPositions[app.id] = { x, y };
+      saveProfiles(profiles);
+    }
+  };
+  icon.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    if (!currentUser || currentUser.iconLayout !== "grid") return;
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = parseInt(icon.style.left, 10) || offsetX;
+    startTop = parseInt(icon.style.top, 10) || offsetY;
     moved = false;
     icon.classList.add("dragging");
     document.addEventListener("pointermove", onMove);
@@ -3852,6 +3947,8 @@ if (taskbarClock) {
  */
 function openChat() {
   addLog("Chat opened");
+  // Apply any saved chat colour overrides
+  applyChatColors();
 
   // Create main container with split panels
   const container = document.createElement("div");
@@ -3947,7 +4044,10 @@ function openChat() {
     modelLabel.textContent = "Model: ";
     const modelSelect = document.createElement("select");
     modelSelect.disabled = true;
-    toolbar.append(modelLabel, modelSelect);
+    const settingsBtn = document.createElement("button");
+    settingsBtn.textContent = "Settings";
+    settingsBtn.addEventListener("click", openChatSettings);
+    toolbar.append(modelLabel, modelSelect, settingsBtn);
 
     const msgList = document.createElement("div");
     msgList.classList.add("chat-messages");
@@ -4110,6 +4210,170 @@ function openChat() {
     saveProfiles(profiles);
     renderConversationList();
     renderChatArea();
+  }
+
+  // Open the Chat settings window with Appearance and Models tabs
+  function openChatSettings() {
+    const winContent = document.createElement("div");
+    winContent.style.cssText = "display:flex; flex-direction:column; height:100%;";
+    const tabBar = document.createElement("div");
+    const appearanceTab = document.createElement("button");
+    appearanceTab.textContent = "Appearance";
+    const modelsTab = document.createElement("button");
+    modelsTab.textContent = "Models";
+    tabBar.append(appearanceTab, modelsTab);
+    const tabBody = document.createElement("div");
+    tabBody.style.cssText = "flex:1; overflow:auto; padding:4px;";
+    winContent.append(tabBar, tabBody);
+
+    function showTab(tab) {
+      appearanceContent.style.display = tab === "appearance" ? "block" : "none";
+      modelsContent.style.display = tab === "models" ? "block" : "none";
+      appearanceTab.disabled = tab === "appearance";
+      modelsTab.disabled = tab === "models";
+    }
+
+    // --- Appearance tab ---
+    const appearanceContent = document.createElement("div");
+    tabBody.append(appearanceContent);
+    function rgbToHex(rgb) {
+      const m = rgb.match(/\d+/g);
+      if (!m) return "#000000";
+      return (
+        "#" + m.slice(0, 3).map((x) => Number(x).toString(16).padStart(2, "0")).join("")
+      );
+    }
+    const defaults = (() => {
+      const cs = getComputedStyle(document.documentElement);
+      return {
+        userBg: rgbToHex(cs.getPropertyValue("--selection-bg")),
+        userText: rgbToHex(cs.getPropertyValue("--window-bg")),
+        assistantBg: rgbToHex(cs.getPropertyValue("--window-bg")),
+        assistantText: rgbToHex(cs.getPropertyValue("--icon-text")),
+      };
+    })();
+    const colors = Object.assign({}, defaults, currentUser.chatColors || {});
+
+    const fields = [
+      ["User Bubble BG", "userBg"],
+      ["User Bubble Text", "userText"],
+      ["Assistant Bubble BG", "assistantBg"],
+      ["Assistant Bubble Text", "assistantText"],
+    ];
+    const inputs = {};
+    fields.forEach(([labelText, key]) => {
+      const row = document.createElement("div");
+      row.style.marginBottom = "8px";
+      const label = document.createElement("label");
+      label.textContent = labelText + ": ";
+      const input = document.createElement("input");
+      input.type = "color";
+      input.value = colors[key];
+      inputs[key] = input;
+      label.append(input);
+      row.append(label);
+      appearanceContent.append(row);
+    });
+    function saveColors() {
+      currentUser.chatColors = {
+        userBg: inputs.userBg.value,
+        userText: inputs.userText.value,
+        assistantBg: inputs.assistantBg.value,
+        assistantText: inputs.assistantText.value,
+      };
+      saveProfiles(profiles);
+      applyChatColors();
+      renderChatArea();
+    }
+    Object.values(inputs).forEach((input) => input.addEventListener("input", saveColors));
+
+    // --- Models tab ---
+    const modelsContent = document.createElement("div");
+    modelsContent.style.display = "none";
+    tabBody.append(modelsContent);
+    const modelList = document.createElement("ul");
+    modelsContent.append(modelList);
+    const modelInput = document.createElement("input");
+    modelInput.type = "text";
+    modelInput.placeholder = "model name e.g. llama3.2:3b";
+    const pullBtn = document.createElement("button");
+    pullBtn.textContent = "Pull";
+    const progress = document.createElement("progress");
+    progress.style.display = "none";
+    progress.max = 100;
+    const output = document.createElement("pre");
+    output.style.whiteSpace = "pre-wrap";
+    modelsContent.append(modelInput, pullBtn, progress, output);
+
+    async function loadModelList() {
+      modelList.innerHTML = "";
+      try {
+        const res = await fetch("/api/ollama/models");
+        const data = await res.json();
+        if (data.models && data.models.length) {
+          data.models.forEach((m) => {
+            const li = document.createElement("li");
+            li.textContent = m;
+            modelList.append(li);
+          });
+        } else {
+          const li = document.createElement("li");
+          li.textContent = data.error || "No models";
+          modelList.append(li);
+        }
+      } catch (err) {
+        const li = document.createElement("li");
+        li.textContent = "Failed to load models";
+        modelList.append(li);
+      }
+    }
+    loadModelList();
+
+    pullBtn.addEventListener("click", async () => {
+      const name = modelInput.value.trim();
+      if (!name) return;
+      modelInput.disabled = true;
+      pullBtn.disabled = true;
+      output.textContent = "";
+      progress.style.display = "block";
+      try {
+        const res = await fetch("/api/execute-command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: `ollama pull ${name}` }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.job_id) throw new Error(data.error || "Failed");
+        const jobId = data.job_id;
+        const timer = setInterval(async () => {
+          const sres = await fetch(`/api/command-status/${jobId}`);
+          const sdata = await sres.json();
+          if (sdata.status === "finished") {
+            clearInterval(timer);
+            progress.style.display = "none";
+            modelInput.disabled = false;
+            pullBtn.disabled = false;
+            if (sdata.returncode === 0) {
+              await loadModelList();
+              renderChatArea();
+            } else {
+              output.textContent = sdata.output || "Error";
+            }
+          }
+        }, 1000);
+      } catch (err) {
+        progress.style.display = "none";
+        modelInput.disabled = false;
+        pullBtn.disabled = false;
+        output.textContent = String(err);
+      }
+    });
+
+    appearanceTab.addEventListener("click", () => showTab("appearance"));
+    modelsTab.addEventListener("click", () => showTab("models"));
+    showTab("appearance");
+
+    windowManager.createWindow("chat-settings", "Chat Settings", winContent);
   }
 
   newChatBtn.onclick = startNewChat;

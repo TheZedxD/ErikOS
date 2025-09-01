@@ -58,7 +58,7 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     terminal_whitelist: list[str] = field(
         default_factory=lambda: _split_csv(
-            os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping")
+            os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping,ollama")
         )
     )
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
