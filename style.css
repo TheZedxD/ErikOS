@@ -584,6 +584,18 @@ body {
   height: 16px;
 }
 
+#start-logout-btn {
+  margin-top: 8px;
+  padding: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#start-logout-btn:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
 /* Login screen overlay */
 #login-screen {
   position: fixed;
@@ -634,6 +646,12 @@ body {
   border-color: #ffffff #000000 #000000 #ffffff;
   overflow: hidden;
   position: relative;
+}
+
+#login-screen .profile:hover,
+#login-screen .profile:focus {
+  border-color: #000000 #ffffff #ffffff #000000;
+  outline: none;
 }
 
 #login-screen .profile:active {
