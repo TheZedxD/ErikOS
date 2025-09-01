@@ -2,6 +2,10 @@ import { ASSET_BASE } from "../../config.js";
 
 const GRID_SIZE = 88;
 const snap = v => Math.round(v / GRID_SIZE) * GRID_SIZE;
+const resolveIcon = icon =>
+  icon.startsWith("http") || icon.startsWith("/")
+    ? icon
+    : `${ASSET_BASE}/${icon}`;
 
 export function renderDesktopIcons(apps, launcher, profileId = 'default'){
   const root = document.getElementById("desktop"); if (!root) return;
@@ -46,7 +50,7 @@ export function renderDesktopIcons(apps, launcher, profileId = 'default'){
     el.className = "desktop-icon"; el.dataset.appId = a.id;
     el.innerHTML = `<img alt=""><span class="label"></span>`;
     const img = el.querySelector("img");
-    img.src = a.icon.startsWith("http") ? a.icon : `${ASSET_BASE}/${a.icon.replace(/^\//,'')}`;
+    img.src = resolveIcon(a.icon);
     el.querySelector(".label").textContent = a.title;
     el.addEventListener("dblclick", ()=> launcher.launch(a.id));
     const pos = place(a.id);

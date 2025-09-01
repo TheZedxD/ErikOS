@@ -155,7 +155,7 @@ export async function mount(winEl, ctx) {
     select.append(defOpt);
     availableIcons.forEach((file) => {
       const opt = document.createElement('option');
-      opt.value = './icons/' + file;
+      opt.value = '/icons/' + file;
       opt.textContent = file;
       select.append(opt);
     });
@@ -202,16 +202,16 @@ export async function mount(winEl, ctx) {
           availableIcons.push(filename);
           document.querySelectorAll('select.icon-select').forEach((sel) => {
             const opt = document.createElement('option');
-            opt.value = './icons/' + filename;
+            opt.value = '/icons/' + filename;
             opt.textContent = filename;
             sel.append(opt);
           });
         }
         currentUser.customIcons = currentUser.customIcons || {};
-        currentUser.customIcons[app.id] = './icons/' + filename;
+        currentUser.customIcons[app.id] = '/icons/' + filename;
         saveProfiles(profiles);
         initDesktop();
-        select.value = './icons/' + filename;
+        select.value = '/icons/' + filename;
       } catch (err) {
         console.error('Upload failed', err);
         alert('Upload failed');
