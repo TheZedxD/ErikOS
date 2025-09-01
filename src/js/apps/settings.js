@@ -1,3 +1,4 @@
+import { APIClient } from '../utils/api.js';
 
 export const meta = { id: 'settings', name: 'Settings', icon: '/icons/settings.png' };
 export function launch(ctx) {
@@ -85,8 +86,9 @@ export async function mount(winEl, ctx) {
   desktopPanel.style.display = 'flex';
   desktopPanel.style.flexDirection = 'column';
   desktopPanel.style.gap = '8px';
-  const iconListResp = await fetch('/api/list-icons').catch(() => null);
-  const iconData = iconListResp ? await iconListResp.json() : {};
+  const api = new APIClient(ctx);
+  const iconListResp = await api.getJSON('/api/list-icons');
+  const iconData = iconListResp.ok ? iconListResp.data : {};
   let availableIcons = iconData.icons || [];
   const layoutHeading = document.createElement('h3');
   layoutHeading.textContent = 'Icon Layout';
@@ -188,13 +190,10 @@ export async function mount(winEl, ctx) {
       const form = new FormData();
       form.append('file', file);
       try {
-        const resp = await fetch('/api/upload-icon', {
-          method: 'POST',
-          body: form,
-        });
-        const data = await resp.json();
-        if (!data.ok) {
-          alert(data.error || 'Upload failed');
+        const resp = await api.post('/api/upload-icon', form);
+        const data = resp.ok ? resp.data : {};
+        if (!resp.ok || !data.ok) {
+          alert(data.error || resp.error || 'Upload failed');
           return;
         }
         const filename = data.file;

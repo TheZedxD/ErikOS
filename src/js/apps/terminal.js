@@ -1,4 +1,6 @@
 
+import { APIClient } from '../utils/api.js';
+
 export const meta = { id: 'terminal', name: 'Terminal', icon: '/icons/terminal.png' };
 export function launch(ctx) {
   const content = document.createElement('div');
@@ -13,6 +15,8 @@ export function mount(winEl, ctx) {
   if (!container) return;
   container.innerHTML = '';
   container.classList.add('terminal-container');
+
+  const api = new APIClient(ctx);
 
   const output = document.createElement('div');
   output.classList.add('terminal-output');
@@ -62,16 +66,11 @@ export function mount(winEl, ctx) {
       if (typeof result === 'string') print(result);
     } else {
       try {
-        const resp = await fetch('/api/execute-command', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: line }),
-        });
-        const data = await resp.json();
-        if (data.error) {
-          print('Error: ' + data.error);
+        const resp = await api.postJSON('/api/execute-command', { command: line });
+        if (!resp.ok || resp.data.error) {
+          print('Error: ' + (resp.data && resp.data.error ? resp.data.error : resp.error));
         } else {
-          print(data.output || '');
+          print(resp.data.output || '');
         }
       } catch (err) {
         print('Failed to execute command');
