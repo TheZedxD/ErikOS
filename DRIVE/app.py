@@ -109,7 +109,7 @@ def _log_response(response):
     else:
         response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-Id"
     return response
 for d in ("icons", "profiles", "logs", "documents"):
     (BASE_DIR / d).mkdir(exist_ok=True)
@@ -158,20 +158,10 @@ ALLOWED_COMMANDS = set(settings.terminal_whitelist)
 # Registry for asynchronous command execution
 command_jobs: dict[str, dict[str, object]] = {}
 
-# Directory where chat histories are stored.  A JSON file is created for
-# each profile under this folder.
-CHAT_HISTORY_DIR = BASE_DIR / "chat_history"
-CHAT_HISTORY_DIR.mkdir(exist_ok=True)
-
-
-def _safe_profile_name(name: str) -> str:
-    """Return a filesystem‑safe version of a profile name."""
-    return "".join(c for c in name if c.isalnum() or c in {"-", "_"}) or "default"
-
 
 def load_chat_history(profile: str) -> list[dict]:
     """Load chat history for ``profile`` from disk."""
-    path = CHAT_HISTORY_DIR / f"{profile}.json"
+    path = user_root(profile) / "chat_history.json"
     if path.exists():
         try:
             with path.open("r", encoding="utf-8") as fh:
@@ -233,7 +223,6 @@ def list_ollama_models():
 @app.get("/api/ollama/history/<profile>")
 def get_chat_history(profile: str):
     """Return stored chat history for the given profile."""
-    profile = _safe_profile_name(profile)
     history = load_chat_history(profile)
     return jsonify({"history": history})
 
@@ -305,8 +294,7 @@ def run_ollama():
         # Save to profile if provided
         if profile:
             try:
-                prof = _safe_profile_name(profile)
-                path = CHAT_HISTORY_DIR / f"{prof}.json"
+                path = user_root(profile) / "chat_history.json"
                 with path.open("w", encoding="utf-8") as fh:
                     json.dump(history, fh)
             except Exception:
@@ -444,33 +432,60 @@ def upload_icon():
 FILE_BASE = settings.root_dir.resolve()
 
 
-def safe_join(rel_path: str) -> Path:
-    """Return an absolute path under ``FILE_BASE`` for ``rel_path``.
+def user_root(user_id: str) -> Path:
+    """Return the root directory for ``user_id``.
+
+    The user id is sanitised to contain only alphanumeric characters,
+    dashes or underscores.  The resulting directory is created if it does
+    not already exist.  A blank or entirely invalid id falls back to
+    ``default``.
+    """
+
+    safe = "".join(c for c in user_id if c.isalnum() or c in "-_").strip() or "default"
+    root = FILE_BASE / "users" / safe
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def safe_join(base: Path, rel_path: str) -> Path:
+    """Return an absolute path under ``base`` for ``rel_path``.
 
     The ``rel_path`` may come from untrusted sources, so this function
     normalises path separators, rejects absolute paths/drives and ensures the
-    final resolved path is still within ``FILE_BASE``.  ``ValueError`` is
-    raised if the path escapes the base directory.
+    final resolved path is still within ``base``. ``ValueError`` is raised if
+    the path escapes the base directory.
     """
 
-    # Treat Windows backslashes as separators even when running on POSIX
-    # systems.  This prevents traversal attempts such as ``..\\secret`` from
-    # being interpreted as a literal file name on Unix.
     normalised = rel_path.replace("\\", "/")
     rel = Path(normalised)
 
-    # Disallow absolute paths or explicit drive references
     if rel.is_absolute() or getattr(rel, "drive", ""):
         raise ValueError("Path escapes base directory")
 
-    target = (FILE_BASE / rel).resolve()
+    target = (base / rel).resolve()
     try:
-        if not target.is_relative_to(FILE_BASE):  # type: ignore[attr-defined]
+        if not target.is_relative_to(base):  # type: ignore[attr-defined]
             raise ValueError("Path escapes base directory")
     except AttributeError:  # Python <3.9 fallback
-        if os.path.commonpath([FILE_BASE, target]) != str(FILE_BASE):
+        if os.path.commonpath([base, target]) != str(base):
             raise ValueError("Path escapes base directory")
     return target
+
+
+def _get_user_root() -> Path | None:
+    """Retrieve and return the current user's root directory.
+
+    The user id is taken from the ``X-User-Id`` header if present,
+    otherwise from a ``user`` query or form parameter.
+    """
+
+    uid = request.headers.get("X-User-Id") or request.args.get("user") or request.form.get("user")
+    if not uid and request.is_json:
+        data = request.get_json(silent=True) or {}
+        uid = data.get("user")
+    if not uid:
+        return None
+    return user_root(uid)
 
 
 def json_error(message: str, status: int = 400):
@@ -481,8 +496,11 @@ def json_error(message: str, status: int = 400):
 def list_directory():
     """Return contents of a directory as JSON."""
     rel = request.args.get("path", "")
+    root = _get_user_root()
+    if root is None:
+        return json_error("user required", 401)
     try:
-        path = safe_join(rel)
+        path = safe_join(root, rel)
         if not path.exists() or not path.is_dir():
             return json_error("Not a directory")
         items = []
@@ -511,8 +529,11 @@ def create_folder():
     name = data.get("name")
     if not name:
         return json_error("name is required")
+    root = _get_user_root()
+    if root is None:
+        return json_error("user required", 401)
     try:
-        path = safe_join(rel) / name
+        path = safe_join(root, rel) / name
         path.mkdir(parents=False, exist_ok=False)
         return jsonify({"success": True})
     except FileExistsError:
@@ -530,8 +551,11 @@ def rename_item():
     new_name = data.get("new_name")
     if not rel or not new_name:
         return json_error("path and new_name required")
+    root = _get_user_root()
+    if root is None:
+        return json_error("user required", 401)
     try:
-        src = safe_join(rel)
+        src = safe_join(root, rel)
         dst = src.parent / new_name
         src.rename(dst)
         return jsonify({"success": True})
@@ -549,8 +573,11 @@ def delete_item():
     rel = data.get("path")
     if not rel:
         return json_error("path is required")
+    root = _get_user_root()
+    if root is None:
+        return json_error("user required", 401)
     try:
-        target = safe_join(rel)
+        target = safe_join(root, rel)
         if target.is_dir():
             os.rmdir(target)
         else:
@@ -574,8 +601,11 @@ def upload_file():
         return jsonify({"ok": False, "error": "file is required"}), 400
     if request.content_length and request.content_length > settings.max_upload_mb * 1024 * 1024:
         return jsonify({"ok": False, "error": "File too large"}), 413
+    root = _get_user_root()
+    if root is None:
+        return jsonify({"ok": False, "error": "user required"}), 401
     try:
-        directory = safe_join(rel)
+        directory = safe_join(root, rel)
         directory.mkdir(parents=True, exist_ok=True)
         dest = directory / file.filename
         file.save(dest)
