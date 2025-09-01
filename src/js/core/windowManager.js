@@ -6,6 +6,8 @@ export class WindowManager {
     this.nextZ = 100;
     this.root = document.getElementById("windows-root");
     this.taskbar = document.getElementById("taskbar-windows");
+    // Alt+Tab window switching
+    window.addEventListener("keydown", (e) => this._handleKey(e));
   }
 
   createWindow(appId, title, contentEl) {
@@ -30,18 +32,27 @@ export class WindowManager {
     const body = document.createElement("div");
     body.className = "window-body";
     body.appendChild(contentEl);
-    const resizer = document.createElement("div");
-    resizer.className = "window-resizer";
 
-    win.append(header, body, resizer);
+    win.append(header, body);
+
+    // create resize handles for all sides/corners
+    const resizers = {};
+    ["n", "e", "s", "w", "ne", "nw", "se", "sw"].forEach((dir) => {
+      const r = document.createElement("div");
+      r.className = `window-resizer ${dir}`;
+      r.dataset.dir = dir;
+      resizers[dir] = r;
+      win.appendChild(r);
+    });
     this.root?.appendChild(win);
 
     const info = {
       id,
+      appId,
       element: win,
       body,
       header,
-      resizer,
+      resizers,
       taskBtn: null,
       minimized: false,
       maximized: false,
@@ -49,11 +60,27 @@ export class WindowManager {
     };
     this.windows.set(id, info);
 
+    // restore previous bounds if stored
+    const saved = this._loadBounds(appId);
+    if (saved) {
+      Object.assign(win.style, {
+        left: `${saved.left}px`,
+        top: `${saved.top}px`,
+        width: `${saved.width}px`,
+        height: `${saved.height}px`,
+      });
+      this._ensureInViewport(info);
+    }
+
     this._makeDraggable(info);
     this._makeResizable(info);
 
     header.addEventListener("mousedown", () => this.focusWindow(id));
     win.addEventListener("mousedown", () => this.focusWindow(id));
+    header.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      this.toggleMaximize(id);
+    });
     header
       .querySelector('[data-act="min"]')
       ?.addEventListener("click", (e) => {
@@ -166,6 +193,7 @@ export class WindowManager {
       info.element.style.height = rect.height || "";
       info.element.classList.remove("maximized");
       info.maximized = false;
+      this._ensureInViewport(info);
     }
     this.focusWindow(id);
   }
@@ -185,6 +213,58 @@ export class WindowManager {
     }
   }
 
+  _saveBounds(info) {
+    const rect = info.element.getBoundingClientRect();
+    const data = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    try {
+      localStorage.setItem(`win-pos-${info.appId}`, JSON.stringify(data));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  _loadBounds(appId) {
+    try {
+      const raw = localStorage.getItem(`win-pos-${appId}`);
+      if (raw) return JSON.parse(raw);
+    } catch (_) {
+      /* ignore */
+    }
+    return null;
+  }
+
+  _handleKey(e) {
+    if (e.altKey && e.key === "Tab") {
+      e.preventDefault();
+      const wins = Array.from(this.windows.values()).filter((w) => !w.minimized);
+      if (wins.length === 0) return;
+      wins.sort((a, b) => Number(a.element.style.zIndex) - Number(b.element.style.zIndex));
+      let idx = wins.findIndex((w) => w.id === this.activeId);
+      idx = (idx + 1) % wins.length;
+      this.focusWindow(wins[idx].id);
+    }
+  }
+
+  _ensureInViewport(info) {
+    const win = info.element;
+    const rect = win.getBoundingClientRect();
+    let left = rect.left;
+    let top = rect.top;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    if (left + rect.width > vw) left = vw - rect.width;
+    if (top + rect.height > vh) top = vh - rect.height;
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    win.style.left = `${left}px`;
+    win.style.top = `${top}px`;
+  }
+
   _makeDraggable(info) {
     const win = info.element;
     const header = info.header;
@@ -198,12 +278,27 @@ export class WindowManager {
       const offY = startY - rect.top;
       const move = (ev) => {
         if (info.maximized) return;
-        win.style.left = `${ev.clientX - offX}px`;
-        win.style.top = `${ev.clientY - offY}px`;
+        let newLeft = ev.clientX - offX;
+        let newTop = ev.clientY - offY;
+        const width = win.offsetWidth;
+        const height = win.offsetHeight;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        // clamp to viewport
+        newLeft = Math.min(Math.max(0, newLeft), vw - width);
+        newTop = Math.min(Math.max(0, newTop), vh - height);
+        const snap = 20;
+        if (Math.abs(newLeft) < snap) newLeft = 0;
+        if (Math.abs(newTop) < snap) newTop = 0;
+        if (Math.abs(vw - (newLeft + width)) < snap) newLeft = vw - width;
+        if (Math.abs(vh - (newTop + height)) < snap) newTop = vh - height;
+        win.style.left = `${newLeft}px`;
+        win.style.top = `${newTop}px`;
       };
       const up = () => {
         window.removeEventListener("mousemove", move);
         window.removeEventListener("mouseup", up);
+        this._saveBounds(info);
       };
       window.addEventListener("mousemove", move);
       window.addEventListener("mouseup", up);
@@ -212,25 +307,61 @@ export class WindowManager {
 
   _makeResizable(info) {
     const win = info.element;
-    const res = info.resizer;
-    res.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startW = win.offsetWidth;
-      const startH = win.offsetHeight;
-      const move = (ev) => {
-        win.style.width = `${startW + (ev.clientX - startX)}px`;
-        win.style.height = `${startH + (ev.clientY - startY)}px`;
-        win.dispatchEvent(new Event("resized"));
-      };
-      const up = () => {
-        window.removeEventListener("mousemove", move);
-        window.removeEventListener("mouseup", up);
-      };
-      window.addEventListener("mousemove", move);
-      window.addEventListener("mouseup", up);
+    Object.values(info.resizers).forEach((res) => {
+      res.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const dir = res.dataset.dir;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startRect = win.getBoundingClientRect();
+        const minW = 200;
+        const minH = 150;
+        const move = (ev) => {
+          let left = startRect.left;
+          let top = startRect.top;
+          let width = startRect.width;
+          let height = startRect.height;
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          if (dir.includes("e")) width = startRect.width + dx;
+          if (dir.includes("s")) height = startRect.height + dy;
+          if (dir.includes("w")) {
+            width = startRect.width - dx;
+            left = startRect.left + dx;
+          }
+          if (dir.includes("n")) {
+            height = startRect.height - dy;
+            top = startRect.top + dy;
+          }
+          width = Math.max(width, minW);
+          height = Math.max(height, minH);
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          if (left < 0) {
+            width += left;
+            left = 0;
+          }
+          if (top < 0) {
+            height += top;
+            top = 0;
+          }
+          if (left + width > vw) width = vw - left;
+          if (top + height > vh) height = vh - top;
+          win.style.left = `${left}px`;
+          win.style.top = `${top}px`;
+          win.style.width = `${width}px`;
+          win.style.height = `${height}px`;
+          win.dispatchEvent(new Event("resized"));
+        };
+        const up = () => {
+          window.removeEventListener("mousemove", move);
+          window.removeEventListener("mouseup", up);
+          this._saveBounds(info);
+        };
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
+      });
     });
   }
 }

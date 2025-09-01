@@ -182,6 +182,15 @@ button,
   font-size: 11px;
 }
 
+button:hover,
+#system-clock:hover,
+#system-tray img:hover,
+.link-tree li button:hover,
+.task-btn:hover,
+.window-header .window-controls button:hover {
+  filter: brightness(1.1);
+}
+
 button:active,
 #system-clock:active,
 #system-tray img:active,
@@ -385,35 +394,39 @@ body {
 }
 
 /* Window title bar */
-.window .title-bar {
+.window-header {
   height: 24px;
   display: flex;
   align-items: center;
   padding: 0 6px;
-  background: var(--title-gradient-dark);
+  background: linear-gradient(
+    to right,
+    var(--title-gradient-light),
+    var(--title-gradient-dark)
+  );
   color: #ffffff;
   user-select: none;
   cursor: move;
 }
 
 /* Inactive window title bar */
-.window.inactive .title-bar {
-  background: var(--inactive-title);
+.window:not(.active) .window-header {
+  background: linear-gradient(to right, var(--inactive-title), var(--inactive-title));
   color: #000;
 }
 
-.window .title-bar .title {
+.window-header .title {
   flex: 1;
   font-weight: bold;
   font-size: 14px;
 }
 
-.window .title-bar .controls {
+.window-header .window-controls {
   display: flex;
   gap: 4px;
 }
 
-.window .title-bar .controls button {
+.window-header .window-controls button {
   width: 16px;
   height: 16px;
   padding: 0;
@@ -423,7 +436,7 @@ body {
   cursor: pointer;
 }
 
-.window .content {
+.window-body {
   flex: 1;
   background: var(--window-bg);
   overflow-y: auto;
@@ -431,6 +444,75 @@ body {
   padding: 4px;
   font-size: 14px;
   max-height: calc(100vh - 80px);
+}
+
+/* Resizer handles */
+.window-resizer {
+  position: absolute;
+}
+
+.window-resizer.n {
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: n-resize;
+}
+
+.window-resizer.s {
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: s-resize;
+}
+
+.window-resizer.e {
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  cursor: e-resize;
+}
+
+.window-resizer.w {
+  top: 0;
+  left: -2px;
+  bottom: 0;
+  width: 4px;
+  cursor: w-resize;
+}
+
+.window-resizer.ne {
+  top: -2px;
+  right: -2px;
+  width: 4px;
+  height: 4px;
+  cursor: ne-resize;
+}
+
+.window-resizer.nw {
+  top: -2px;
+  left: -2px;
+  width: 4px;
+  height: 4px;
+  cursor: nw-resize;
+}
+
+.window-resizer.se {
+  bottom: -2px;
+  right: -2px;
+  width: 4px;
+  height: 4px;
+  cursor: se-resize;
+}
+
+.window-resizer.sw {
+  bottom: -2px;
+  left: -2px;
+  width: 4px;
+  height: 4px;
+  cursor: sw-resize;
 }
 
 /* Desktop icons */
