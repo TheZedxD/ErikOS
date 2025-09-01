@@ -33,13 +33,14 @@ window.addEventListener("unhandledrejection", (e) => {
 
 export function bootstrap(){
   const ctx = {};
-  const launcher = new Launcher(ctx);
   console.time("registry");
   const apps = loadApps();
   console.timeEnd("registry");
 
+  const launcher = new Launcher(ctx, apps);
+
   console.time("desktop");
-  renderDesktopIcons(launcher);
+  renderDesktopIcons(apps, launcher);
   console.timeEnd("desktop");
 
   console.time("start");
