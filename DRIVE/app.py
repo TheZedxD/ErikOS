@@ -429,20 +429,23 @@ def upload_icon():
 # the client are interpreted relative to this directory. The resolved path is
 # always checked to ensure it does not escape this directory to mitigate
 # directory traversal attacks.
-FILE_BASE = settings.root_dir.resolve()
+
+
+def _safe_user(u: str) -> str:
+    """Return a filesystem-safe user id."""
+
+    return "".join(c for c in (u or "") if c.isalnum() or c in "-_") or "default"
 
 
 def user_root(user_id: str) -> Path:
     """Return the root directory for ``user_id``.
 
-    The user id is sanitised to contain only alphanumeric characters,
-    dashes or underscores.  The resulting directory is created if it does
-    not already exist.  A blank or entirely invalid id falls back to
-    ``default``.
+    A dedicated subdirectory is created under ``BASE_DIR / users`` for each
+    user.  The identifier is sanitised via :func:`_safe_user` to avoid
+    unexpected path components.
     """
 
-    safe = "".join(c for c in user_id if c.isalnum() or c in "-_").strip() or "default"
-    root = FILE_BASE / "users" / safe
+    root = BASE_DIR / "users" / _safe_user(user_id)
     root.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -479,12 +482,16 @@ def _get_user_root() -> Path | None:
     otherwise from a ``user`` query or form parameter.
     """
 
-    uid = request.headers.get("X-User-Id") or request.args.get("user") or request.form.get("user")
+    uid = (
+        request.headers.get("X-User-Id")
+        or request.args.get("user")
+        or request.form.get("user")
+    )
     if not uid and request.is_json:
         data = request.get_json(silent=True) or {}
         uid = data.get("user")
     if not uid:
-        uid = "guest"
+        return None
     return user_root(uid)
 
 
@@ -500,11 +507,11 @@ def list_directory():
     if root is None:
         return json_error("user required", 401)
     try:
-        path = safe_join(root, rel)
-        if not path.exists() or not path.is_dir():
+        abs_path = safe_join(root, rel)
+        if not abs_path.exists() or not abs_path.is_dir():
             return json_error("Not a directory")
         items = []
-        for entry in os.scandir(path):
+        for entry in os.scandir(abs_path):
             info = entry.stat()
             items.append(
                 {
@@ -533,8 +540,9 @@ def create_folder():
     if root is None:
         return json_error("user required", 401)
     try:
-        path = safe_join(root, rel) / name
-        path.mkdir(parents=False, exist_ok=False)
+        base = safe_join(root, rel)
+        abs_path = base / name
+        abs_path.mkdir(parents=False, exist_ok=False)
         return jsonify({"success": True})
     except FileExistsError:
         return json_error("Folder exists")
@@ -555,9 +563,9 @@ def rename_item():
     if root is None:
         return json_error("user required", 401)
     try:
-        src = safe_join(root, rel)
-        dst = src.parent / new_name
-        src.rename(dst)
+        abs_path = safe_join(root, rel)
+        dst = abs_path.parent / new_name
+        abs_path.rename(dst)
         return jsonify({"success": True})
     except FileNotFoundError:
         return json_error("Not found", 404)
@@ -577,11 +585,11 @@ def delete_item():
     if root is None:
         return json_error("user required", 401)
     try:
-        target = safe_join(root, rel)
-        if target.is_dir():
-            os.rmdir(target)
+        abs_path = safe_join(root, rel)
+        if abs_path.is_dir():
+            os.rmdir(abs_path)
         else:
-            target.unlink()
+            abs_path.unlink()
         return jsonify({"success": True})
     except FileNotFoundError:
         return json_error("Not found", 404)

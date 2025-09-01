@@ -25,8 +25,10 @@ A Windows 95 inspired desktop environment that runs entirely in the browser. A l
 - **Diagnostics** self-check tool
 
 ## User data
-Each profile's files are isolated in `DRIVE/users/<id>` on the server.
-Profiles are limited to five to keep things tidy.
+Each profile's files are isolated in `DRIVE/users/<id>` on the server. File
+API requests must include the profile's `X-User-Id` (or a `user` parameter)
+so the backend can resolve paths within that sandbox. Profiles are limited to
+five to keep things tidy.
 
 ## Installation
 

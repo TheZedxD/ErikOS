@@ -4,7 +4,7 @@
 import { currentUser } from '../core/globals.js';
 
 function userHeader() {
-  return { 'X-User-Id': currentUser ? currentUser.id : '' };
+  return currentUser && currentUser.id ? { 'X-User-Id': currentUser.id } : {};
 }
 
 export async function getJSON(url) {
