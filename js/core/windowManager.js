@@ -11,16 +11,13 @@ class WindowManager {
   }
 
   open(app) {
-    if (app && typeof app.launch === 'function' && !app.placeholder) {
+    if (app && typeof app.launch === 'function') {
       try {
         return app.launch();
       } catch (e) {
         console.error(e);
       }
     }
-    const content = document.createElement('div');
-    content.textContent = 'Coming Soon';
-    this.createWindow(app?.id || 'unknown', app?.name || 'App', content);
   }
 
   createWindow(appId, title, contentEl) {
