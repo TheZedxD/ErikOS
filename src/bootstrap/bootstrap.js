@@ -2,6 +2,7 @@ import { gate } from './logBoot.js';
 import { API_BASE, ASSET_BASE, REGISTRY_URL } from '../config.js';
 import { renderDesktopIcons } from '../js/core/desktop.js';
 import { registerTray } from '../js/core/tray.js';
+import { wireTaskbarButtons } from '../js/core/taskbar.js';
 import { buildStartMenu, wireStartToggle } from '../js/core/startMenu.js';
 import { Launcher } from '../js/core/launcher.js';
 
@@ -39,11 +40,12 @@ async function loadRegistry(){
 }
 
 async function mountDesktop(ctx, apps, launcher){
-  renderDesktopIcons(apps, launcher);
+  renderDesktopIcons(apps, launcher, ctx.profileId || 'default');
 }
 
 async function mountTaskbar(ctx, apps, launcher){
   registerTray(launcher);
+  wireTaskbarButtons();
 }
 
 async function mountStartMenu(ctx, apps, launcher){
@@ -52,7 +54,7 @@ async function mountStartMenu(ctx, apps, launcher){
 }
 
 async function main(){
-  const ctx = {};
+  const ctx = { profileId: localStorage.getItem('profileId') || 'default' };
   await gate('loadConfig', loadConfig);
   const apps = await gate('loadRegistry', loadRegistry);
   const launcher = new Launcher(ctx, apps);

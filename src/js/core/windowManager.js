@@ -5,6 +5,7 @@ export class WindowManager{
     this.z = 1;
     this.count = 0;
     this.windows = new Map();
+    this.active = null;
   }
 
   open(meta){
@@ -42,10 +43,10 @@ export class WindowManager{
 
     // taskbar button
     const btn=document.createElement("button");
-    btn.className="taskbar-item";
+    btn.className="task-btn";
     btn.textContent=meta.name||meta.title||id;
     btn.dataset.win=id;
-    btn.addEventListener("click",()=>this.toggle(id));
+    btn.addEventListener("click",()=>this.focus(id));
     this.taskbar?.appendChild(btn);
     info.taskBtn=btn;
 
@@ -55,19 +56,28 @@ export class WindowManager{
 
   focus(id){
     const info=this.windows.get(id); if(!info) return;
-    if(info.minimized) return;
+    if(info.minimized){
+      info.minimized=false;
+      info.el.style.display="";
+    }
+    if(this.active && this.active!==id){
+      window.dispatchEvent(new CustomEvent('window-blurred',{detail:{id:this.active}}));
+    }
+    this.active=id;
     info.el.style.display="";
     info.el.style.zIndex=this.z++;
-    this.windows.forEach((w,wid)=>{
-      w.taskBtn?.classList.toggle("active", wid===id && !w.minimized);
-    });
+    window.dispatchEvent(new CustomEvent('window-focused',{detail:{id}}));
   }
 
   minimize(id){
     const info=this.windows.get(id); if(!info||info.minimized) return;
+    const wasActive = this.active===id;
     info.minimized=true;
     info.el.style.display="none";
-    info.taskBtn?.classList.remove("active");
+    if(wasActive){
+      this.active=null;
+      window.dispatchEvent(new CustomEvent('window-blurred',{detail:{id}}));
+    }
   }
 
   restore(id){
@@ -84,9 +94,14 @@ export class WindowManager{
 
   close(id){
     const info=this.windows.get(id); if(!info) return;
+    const wasActive = this.active===id;
     info.el.remove();
     info.taskBtn?.remove();
     this.windows.delete(id);
+    if(wasActive){
+      this.active=null;
+      window.dispatchEvent(new CustomEvent('window-blurred',{detail:{id}}));
+    }
   }
 
   _wireDrag(info){
