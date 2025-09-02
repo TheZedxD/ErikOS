@@ -1,4 +1,5 @@
 import { loadApps } from "./core/appRegistry.js";
+import { IconManager } from "./utils/iconManager.js";
 import { renderDesktopIcons } from "./core/desktop.js";
 import { buildStartMenu, wireStartToggle } from "./core/startMenu.js";
 import { registerTray } from "./core/tray.js";
@@ -56,6 +57,8 @@ export function bootstrap(){
 
 document.addEventListener("DOMContentLoaded", () => {
   bootstrap();
+  // Fix any oversized icons
+  IconManager.fixAllIcons();
   setTimeout(() => {
     if (document.querySelectorAll("#desktop .icon").length === 0) {
       overlay("Bootstrap stalled — check IDs, assets, registry.");
