@@ -8,8 +8,9 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  addLog('Chat opened');
-  applyChatColors();
+  const g = ctx.globals;
+  g.addLog?.('Chat opened');
+  g.applyChatColors?.();
 
   const api = new APIClient(ctx);
 
@@ -50,15 +51,15 @@ export function mount(winEl, ctx) {
 
   container.append(historyPanel, chatPanel);
 
-  if (!currentUser.conversations) currentUser.conversations = [];
-  const historyRespPromise = currentUser
-    ? api.getJSON(`/api/ollama/history/${currentUser.id}`).catch(() => ({ ok: false }))
+  if (!g.currentUser.conversations) g.currentUser.conversations = [];
+  const historyRespPromise = g.currentUser
+    ? api.getJSON(`/api/ollama/history/${g.currentUser.id}`).catch(() => ({ ok: false }))
     : Promise.resolve({ ok: false });
   let currentConversation = null;
 
   function renderConversationList() {
     convList.innerHTML = '';
-    currentUser.conversations.forEach((conv) => {
+    g.currentUser.conversations.forEach((conv) => {
       const item = document.createElement('div');
       item.className = 'chat-conversation-item';
       if (conv === currentConversation) item.classList.add('active');
@@ -77,9 +78,9 @@ export function mount(winEl, ctx) {
       deleteBtn.onclick = (e) => {
         e.stopPropagation();
         if (confirm('Delete this conversation?')) {
-          const idx = currentUser.conversations.indexOf(conv);
-          currentUser.conversations.splice(idx, 1);
-          saveProfiles(profiles);
+          const idx = g.currentUser.conversations.indexOf(conv);
+          g.currentUser.conversations.splice(idx, 1);
+          g.saveProfiles?.(g.profiles);
           if (conv === currentConversation) {
             startNewChat();
           } else {
@@ -102,8 +103,8 @@ export function mount(winEl, ctx) {
         messages: res.data.history,
         timestamp: new Date().toISOString(),
       };
-      const hadConvs = currentUser.conversations.length > 0;
-      currentUser.conversations.unshift(conv);
+      const hadConvs = g.currentUser.conversations.length > 0;
+      g.currentUser.conversations.unshift(conv);
       if (!hadConvs) {
         loadConversation(conv);
       } else {
@@ -231,7 +232,7 @@ export function mount(winEl, ctx) {
         if (currentConversation.title === 'New Chat') {
           currentConversation.title = generateTitle(msg);
         }
-        saveProfiles(profiles);
+        g.saveProfiles?.(g.profiles);
         renderConversationList();
         input.value = '';
       }
@@ -244,7 +245,7 @@ export function mount(winEl, ctx) {
           prompt: msg,
           history: currentConversation.messages,
           image: imageData,
-          profile: currentUser ? currentUser.id : null,
+          profile: g.currentUser ? g.currentUser.id : null,
         });
         placeholder.remove();
         if (!res.ok || res.data.error) {
@@ -254,7 +255,7 @@ export function mount(winEl, ctx) {
           const respText = data.response || '';
           appendMessage('assistant', respText);
           currentConversation.messages = data.history || currentConversation.messages;
-          saveProfiles(profiles);
+          g.saveProfiles?.(g.profiles);
           renderConversationList();
         }
       } catch (err) {
@@ -280,8 +281,8 @@ export function mount(winEl, ctx) {
       messages: [],
       timestamp: new Date().toISOString(),
     };
-    currentUser.conversations.unshift(currentConversation);
-    saveProfiles(profiles);
+    g.currentUser.conversations.unshift(currentConversation);
+    g.saveProfiles?.(g.profiles);
     renderConversationList();
     renderChatArea();
   }
@@ -325,7 +326,7 @@ export function mount(winEl, ctx) {
       };
     })();
 
-    const colors = Object.assign({}, defaults, currentUser.chatColors || {});
+    const colors = Object.assign({}, defaults, g.currentUser.chatColors || {});
 
     const fields = [
       ['User Bubble BG', 'userBg'],
@@ -348,14 +349,14 @@ export function mount(winEl, ctx) {
       appearanceContent.append(row);
     });
     function saveColors() {
-      currentUser.chatColors = {
+      g.currentUser.chatColors = {
         userBg: inputs.userBg.value,
         userText: inputs.userText.value,
         assistantBg: inputs.assistantBg.value,
         assistantText: inputs.assistantText.value,
       };
-      saveProfiles(profiles);
-      applyChatColors();
+      g.saveProfiles?.(g.profiles);
+      g.applyChatColors?.();
       renderChatArea();
     }
     Object.values(inputs).forEach((input) => input.addEventListener('input', saveColors));
@@ -443,8 +444,8 @@ export function mount(winEl, ctx) {
 
   newChatBtn.onclick = startNewChat;
 
-  if (currentUser.conversations.length) {
-    loadConversation(currentUser.conversations[0]);
+  if (g.currentUser.conversations.length) {
+    loadConversation(g.currentUser.conversations[0]);
   } else {
     startNewChat();
   }

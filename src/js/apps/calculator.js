@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  addLog('Calculator opened');
+  ctx.globals.addLog?.('Calculator opened');
   const container = winEl.classList.contains('window')
     ? winEl.querySelector('.content')
     : winEl;

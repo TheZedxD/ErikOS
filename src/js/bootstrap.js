@@ -34,6 +34,29 @@ window.addEventListener("unhandledrejection", (e) => {
 
 export function bootstrap(){
   const ctx = {};
+  ctx.globals = {
+    get currentUser() { return window.currentUser; },
+    set currentUser(v) { window.currentUser = v; },
+    get profiles() { return window.profiles; },
+    set profiles(v) { window.profiles = v; },
+    get logsData() { return window.logsData; },
+    set logsData(v) { window.logsData = v; },
+    get globalVolume() { return window.globalVolume; },
+    set globalVolume(v) { window.globalVolume = v; },
+    saveProfiles: window.saveProfiles,
+    setTheme: window.setTheme,
+    applyUserSettings: window.applyUserSettings,
+    initContextMenu: window.initContextMenu,
+    initDesktop: window.initDesktop,
+    addLog: window.addLog,
+    saveLogs: window.saveLogs,
+    showLoginScreen: window.showLoginScreen,
+    logoutUser: window.logoutUser,
+    showToast: window.showToast,
+    addAudioElement: window.addAudioElement,
+    setGlobalVolume: window.setGlobalVolume,
+    applyChatColors: window.applyChatColors,
+  };
   console.time("registry");
   const apps = loadApps();
   console.timeEnd("registry");

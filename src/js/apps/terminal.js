@@ -39,7 +39,7 @@ export function mount(winEl, ctx) {
       return '';
     },
     theme: (name) => {
-      setTheme(name);
+      ctx.globals.setTheme?.(name);
       return `Theme changed to ${name}`;
     },
     about: () =>

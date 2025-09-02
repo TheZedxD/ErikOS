@@ -7,7 +7,7 @@ export function launch(ctx) {
 }
 
 export function mount(winEl, ctx) {
-  addLog('Snip tool activated');
+  ctx.globals.addLog?.('Snip tool activated');
   const api = new APIClient(ctx);
   const overlay = document.getElementById('snip-overlay');
   if (!overlay || overlay.style.display === 'block') return;
@@ -64,21 +64,21 @@ export function mount(winEl, ctx) {
       const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
       try {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-        showToast('Copied to clipboard');
+        ctx.globals.showToast?.('Copied to clipboard');
       } catch {
-        const path = `users/${currentUser?.id || 'guest'}/Screenshots`;
+        const path = `users/${ctx.globals.currentUser?.id || 'guest'}/Screenshots`;
         const fd = new FormData();
         fd.append('path', path);
         fd.append('file', blob, `snip-${Date.now()}.png`);
         const res = await api.post('/api/upload', fd);
         if (res.ok && res.data.ok !== false) {
-          showToast('Saved to Screenshots/');
+          ctx.globals.showToast?.('Saved to Screenshots/');
         } else {
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
           a.download = `screenshot-${Date.now()}.png`;
           a.click();
-          showToast('Saved screenshot');
+          ctx.globals.showToast?.('Saved screenshot');
         }
       }
     } catch (err) {

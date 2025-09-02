@@ -19,9 +19,9 @@ export function mount(winEl, ctx) {
   slider.min = '0';
   slider.max = '1';
   slider.step = '0.01';
-  slider.value = String(globalVolume);
+  slider.value = String(ctx.globals.globalVolume);
   slider.addEventListener('input', () => {
-    setGlobalVolume(parseFloat(slider.value));
+    ctx.globals.setGlobalVolume?.(parseFloat(slider.value));
   });
 
   container.append(label, slider);

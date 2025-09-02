@@ -9,6 +9,7 @@ export function launch(ctx) {
 }
 export async function mount(winEl, ctx) {
   const container = winEl.querySelector('.content');
+  const g = ctx.globals;
   container.classList.add('settings-panel');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
@@ -45,16 +46,16 @@ export async function mount(winEl, ctx) {
     const opt = document.createElement('option');
     opt.value = name;
     opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
-    const activeTheme = currentUser
-      ? currentUser.theme || 'default'
+    const activeTheme = g.currentUser
+      ? g.currentUser.theme || 'default'
       : document.body.className.match(/theme-(\w+)/)?.[1] || 'default';
     if (name === activeTheme) opt.selected = true;
     themeSelect.append(opt);
   });
   appearance.append(themeHeading, themeSelect);
 
-  const activeThemeClass = currentUser
-    ? currentUser.theme || 'default'
+  const activeThemeClass = g.currentUser
+    ? g.currentUser.theme || 'default'
     : document.body.className.match(/theme-(\w+)/)?.[1] || 'default';
   Array.from(themeSelect.options).forEach((opt) => {
     opt.addEventListener('mouseenter', () => {
@@ -104,7 +105,7 @@ export async function mount(winEl, ctx) {
   gridRadio.value = 'grid';
   const gridLabel = document.createElement('label');
   gridLabel.append(gridRadio, document.createTextNode(' Snap to grid'));
-  if (currentUser && currentUser.iconLayout === 'free')
+  if (g.currentUser && g.currentUser.iconLayout === 'free')
     freeRadio.checked = true;
   else gridRadio.checked = true;
   desktopPanel.append(layoutHeading, freeLabel, gridLabel);
@@ -113,17 +114,17 @@ export async function mount(winEl, ctx) {
   trayHeading.textContent = 'Taskbar Elements';
   const clockChk = document.createElement('input');
   clockChk.type = 'checkbox';
-  clockChk.checked = currentUser ? currentUser.showClock : true;
+  clockChk.checked = g.currentUser ? g.currentUser.showClock : true;
   const clockLabel = document.createElement('label');
   clockLabel.append(clockChk, document.createTextNode(' Show clock'));
   const volChk = document.createElement('input');
   volChk.type = 'checkbox';
-  volChk.checked = currentUser ? currentUser.showVolume : true;
+  volChk.checked = g.currentUser ? g.currentUser.showVolume : true;
   const volLabel = document.createElement('label');
   volLabel.append(volChk, document.createTextNode(' Show volume control'));
   const linksChk = document.createElement('input');
   linksChk.type = 'checkbox';
-  linksChk.checked = currentUser ? currentUser.showLinks : true;
+  linksChk.checked = g.currentUser ? g.currentUser.showLinks : true;
   const linksLabel = document.createElement('label');
   linksLabel.append(linksChk, document.createTextNode(' Show quick links'));
   desktopPanel.append(trayHeading, clockLabel, volLabel, linksLabel);
@@ -140,8 +141,8 @@ export async function mount(winEl, ctx) {
     chk.type = 'checkbox';
     chk.id = `vis-${app.id}`;
     const isVisible =
-      currentUser && Array.isArray(currentUser.visibleApps)
-        ? currentUser.visibleApps.includes(app.id)
+      g.currentUser && Array.isArray(g.currentUser.visibleApps)
+        ? g.currentUser.visibleApps.includes(app.id)
         : true;
     chk.checked = isVisible;
     const lbl = document.createElement('label');
@@ -162,18 +163,18 @@ export async function mount(winEl, ctx) {
       select.append(opt);
     });
     if (
-      currentUser &&
-      currentUser.customIcons &&
-      currentUser.customIcons[app.id]
+      g.currentUser &&
+      g.currentUser.customIcons &&
+      g.currentUser.customIcons[app.id]
     ) {
-      select.value = currentUser.customIcons[app.id];
+      select.value = g.currentUser.customIcons[app.id];
     }
     select.addEventListener('change', () => {
-      if (!currentUser) return;
-      currentUser.customIcons = currentUser.customIcons || {};
-      currentUser.customIcons[app.id] = select.value;
-      saveProfiles(profiles);
-      initDesktop();
+      if (!g.currentUser) return;
+      g.currentUser.customIcons = g.currentUser.customIcons || {};
+      g.currentUser.customIcons[app.id] = select.value;
+      g.saveProfiles?.(g.profiles);
+      g.initDesktop?.();
     });
     const iconBtn = document.createElement('button');
     iconBtn.textContent = 'Upload Icon';
@@ -186,7 +187,7 @@ export async function mount(winEl, ctx) {
     iconBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
-      if (!file || !currentUser) return;
+      if (!file || !g.currentUser) return;
       const form = new FormData();
       form.append('file', file);
       try {
@@ -206,10 +207,10 @@ export async function mount(winEl, ctx) {
             sel.append(opt);
           });
         }
-        currentUser.customIcons = currentUser.customIcons || {};
-        currentUser.customIcons[app.id] = '/icons/' + filename;
-        saveProfiles(profiles);
-        initDesktop();
+        g.currentUser.customIcons = g.currentUser.customIcons || {};
+        g.currentUser.customIcons[app.id] = '/icons/' + filename;
+        g.saveProfiles?.(g.profiles);
+        g.initDesktop?.();
         select.value = '/icons/' + filename;
       } catch (err) {
         console.error('Upload failed', err);
@@ -217,10 +218,10 @@ export async function mount(winEl, ctx) {
       }
     });
     resetIconBtn.addEventListener('click', () => {
-      if (!currentUser || !currentUser.customIcons) return;
-      delete currentUser.customIcons[app.id];
-      saveProfiles(profiles);
-      initDesktop();
+      if (!g.currentUser || !g.currentUser.customIcons) return;
+      delete g.currentUser.customIcons[app.id];
+      g.saveProfiles?.(g.profiles);
+      g.initDesktop?.();
       select.value = app.icon;
     });
     row.append(select, iconBtn, resetIconBtn, fileInput);
@@ -231,28 +232,28 @@ export async function mount(winEl, ctx) {
     }
 
     chk.addEventListener('change', () => {
-      if (!currentUser) return;
-      const list = currentUser.visibleApps || [];
+      if (!g.currentUser) return;
+      const list = g.currentUser.visibleApps || [];
       if (chk.checked) {
         if (!list.includes(app.id)) list.push(app.id);
       } else {
         const idx = list.indexOf(app.id);
         if (idx >= 0) list.splice(idx, 1);
       }
-      currentUser.visibleApps = list;
-      saveProfiles(profiles);
-      initDesktop();
+      g.currentUser.visibleApps = list;
+      g.saveProfiles?.(g.profiles);
+      g.initDesktop?.();
     });
     desktopPanel.append(row);
   });
 
   const securityPanel = makePanel('Security');
-  if (currentUser) {
+  if (g.currentUser) {
     const accHeading = document.createElement('h3');
     accHeading.textContent = 'Account Security';
     const requireChk = document.createElement('input');
     requireChk.type = 'checkbox';
-    requireChk.checked = currentUser.requirePassword;
+    requireChk.checked = g.currentUser.requirePassword;
     const requireLabel = document.createElement('label');
     requireLabel.append(
       requireChk,
@@ -263,15 +264,15 @@ export async function mount(winEl, ctx) {
     securityPanel.append(accHeading, requireLabel, changePwdBtn);
     changePwdBtn.addEventListener('click', () => {
       const pwd = prompt('Enter new password (leave blank to remove password)');
-      currentUser.password = pwd || null;
-      currentUser.requirePassword = pwd ? requireChk.checked : false;
-      saveProfiles(profiles);
+      g.currentUser.password = pwd || null;
+      g.currentUser.requirePassword = pwd ? requireChk.checked : false;
+      g.saveProfiles?.(g.profiles);
       alert('Password updated');
     });
     requireChk.addEventListener('change', () => {
-      currentUser.requirePassword =
-        requireChk.checked && !!currentUser.password;
-      saveProfiles(profiles);
+      g.currentUser.requirePassword =
+        requireChk.checked && !!g.currentUser.password;
+      g.saveProfiles?.(g.profiles);
     });
 
     const loginBgHeading = document.createElement('h3');
@@ -312,10 +313,10 @@ export async function mount(winEl, ctx) {
   volSlider.min = '0';
   volSlider.max = '1';
   volSlider.step = '0.01';
-  volSlider.value = String(globalVolume);
+  volSlider.value = String(g.globalVolume);
   audioPanel.append(audioHeading, volSlider);
   volSlider.addEventListener('input', () => {
-    setGlobalVolume(parseFloat(volSlider.value));
+    g.setGlobalVolume?.(parseFloat(volSlider.value));
   });
 
   const advancedPanel = makePanel('Advanced');
@@ -350,11 +351,11 @@ export async function mount(winEl, ctx) {
 
   themeSelect.addEventListener('change', () => {
     const val = themeSelect.value;
-    if (currentUser) {
-      currentUser.theme = val === 'default' ? null : val;
-      saveProfiles(profiles);
+    if (g.currentUser) {
+      g.currentUser.theme = val === 'default' ? null : val;
+      g.saveProfiles?.(g.profiles);
     }
-    setTheme(val);
+    g.setTheme?.(val);
   });
   wallpaperInput.addEventListener('change', () => {
     const file = wallpaperInput.files[0];
@@ -362,9 +363,9 @@ export async function mount(winEl, ctx) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target.result;
-      if (currentUser) {
-        currentUser.wallpaper = dataUrl;
-        saveProfiles(profiles);
+      if (g.currentUser) {
+        g.currentUser.wallpaper = dataUrl;
+        g.saveProfiles?.(g.profiles);
       } else {
         localStorage.setItem('win95-wallpaper', dataUrl);
       }
@@ -373,9 +374,9 @@ export async function mount(winEl, ctx) {
     reader.readAsDataURL(file);
   });
   resetWallpaperBtn.addEventListener('click', () => {
-    if (currentUser) {
-      currentUser.wallpaper = null;
-      saveProfiles(profiles);
+    if (g.currentUser) {
+      g.currentUser.wallpaper = null;
+      g.saveProfiles?.(g.profiles);
     } else {
       localStorage.removeItem('win95-wallpaper');
     }
@@ -390,25 +391,25 @@ export async function mount(winEl, ctx) {
   });
 
   clockChk.addEventListener('change', () => {
-    if (!currentUser) return;
-    currentUser.showClock = clockChk.checked;
-    saveProfiles(profiles);
+    if (!g.currentUser) return;
+    g.currentUser.showClock = clockChk.checked;
+    g.saveProfiles?.(g.profiles);
     document.getElementById('system-clock').style.display = clockChk.checked
       ? 'flex'
       : 'none';
   });
   volChk.addEventListener('change', () => {
-    if (!currentUser) return;
-    currentUser.showVolume = volChk.checked;
-    saveProfiles(profiles);
+    if (!g.currentUser) return;
+    g.currentUser.showVolume = volChk.checked;
+    g.saveProfiles?.(g.profiles);
     document.getElementById('tray-volume-icon').style.display = volChk.checked
       ? 'inline'
       : 'none';
   });
   linksChk.addEventListener('change', () => {
-    if (!currentUser) return;
-    currentUser.showLinks = linksChk.checked;
-    saveProfiles(profiles);
+    if (!g.currentUser) return;
+    g.currentUser.showLinks = linksChk.checked;
+    g.saveProfiles?.(g.profiles);
     document.getElementById('tray-links-icon').style.display = linksChk.checked
       ? 'inline'
       : 'none';

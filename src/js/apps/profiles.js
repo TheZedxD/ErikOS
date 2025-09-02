@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  if (!currentUser) {
+  if (!ctx.globals.currentUser) {
     const container = winEl.querySelector('.content');
     if (container) container.textContent = 'No user logged in';
     return;
@@ -21,7 +21,7 @@ export function mount(winEl, ctx) {
 
   function render() {
     content.innerHTML = '';
-    profiles.forEach((profile, idx) => {
+    ctx.globals.profiles.forEach((profile, idx) => {
       const row = document.createElement('div');
       row.classList.add('file-item');
       row.style.display = 'flex';
@@ -35,25 +35,25 @@ export function mount(winEl, ctx) {
         const newName = prompt('Enter new name', profile.name);
         if (newName) {
           profile.name = newName;
-          saveProfiles(profiles);
+          ctx.globals.saveProfiles?.(ctx.globals.profiles);
           render();
         }
       });
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', () => {
-        if (profiles.length === 1) {
+        if (ctx.globals.profiles.length === 1) {
           alert('At least one profile must exist');
           return;
         }
         if (confirm('Delete this profile?')) {
-          const removingCurrent = profile.id === currentUser.id;
-          profiles.splice(idx,1);
-          saveProfiles(profiles);
+          const removingCurrent = profile.id === ctx.globals.currentUser.id;
+          ctx.globals.profiles.splice(idx,1);
+          ctx.globals.saveProfiles?.(ctx.globals.profiles);
           if (removingCurrent) {
-            currentUser = null;
+            ctx.globals.currentUser = null;
             localStorage.removeItem('win95-current-user');
-            showLoginScreen();
+            ctx.globals.showLoginScreen?.();
           } else {
             render();
           }
@@ -61,27 +61,27 @@ export function mount(winEl, ctx) {
       });
       const switchBtn = document.createElement('button');
       switchBtn.textContent = 'Switch';
-      switchBtn.disabled = profile.id === currentUser.id;
+      switchBtn.disabled = profile.id === ctx.globals.currentUser.id;
       switchBtn.addEventListener('click', () => {
         if (profile.requirePassword) {
           alert('Cannot switch to a password‑protected profile. Log out and sign in instead.');
         } else {
-          currentUser = profile;
+          ctx.globals.currentUser = profile;
           localStorage.setItem('win95-current-user', profile.id);
-          applyUserSettings(profile);
-          initDesktop();
-          initContextMenu();
+          ctx.globals.applyUserSettings?.(profile);
+          ctx.globals.initDesktop?.();
+          ctx.globals.initContextMenu?.();
           ctx.windowManager.windows.forEach(w => {
             ctx.windowManager.closeWindow(w.element.dataset.id);
           });
-          addLog('Switched to profile ' + profile.name);
+          ctx.globals.addLog?.('Switched to profile ' + profile.name);
         }
       });
       const logoutBtn = document.createElement('button');
       logoutBtn.textContent = 'Log Out';
-      logoutBtn.addEventListener('click', () => { logoutUser(); });
+      logoutBtn.addEventListener('click', () => { ctx.globals.logoutUser?.(); });
       row.append(nameSpan, renameBtn, deleteBtn, switchBtn);
-      if (profile.id === currentUser.id) row.append(logoutBtn);
+      if (profile.id === ctx.globals.currentUser.id) row.append(logoutBtn);
       content.append(row);
     });
   }
