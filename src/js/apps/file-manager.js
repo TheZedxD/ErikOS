@@ -13,7 +13,7 @@ export function launch(ctx) {
 }
 
 export function mount(winEl, ctx) {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.classList.add('file-manager');
 
   const api = new APIClient(ctx);

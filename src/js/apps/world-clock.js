@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.classList.add('file-manager');
 
   const toolbar = document.createElement('div');

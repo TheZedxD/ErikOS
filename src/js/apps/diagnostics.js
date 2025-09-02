@@ -10,7 +10,7 @@ export function launch(ctx) {
 }
 
 export function mount(winEl, ctx) {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.style.padding = '8px';
   container.textContent = 'Running diagnostics...';
   const api = new APIClient(ctx);

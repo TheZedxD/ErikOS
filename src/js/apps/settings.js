@@ -8,7 +8,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export async function mount(winEl, ctx) {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.classList.add('settings-panel');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';

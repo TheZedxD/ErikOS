@@ -129,10 +129,15 @@ export function renderDesktopIcons(apps, launcher, profileId = "default") {
     const el = document.createElement("div");
     el.className = "desktop-icon";
     el.dataset.appId = a.id;
-    el.innerHTML = `<img alt=""><span class="label"></span>`;
+    el.innerHTML = `<img alt=""><span class=\"label\"></span>`;
     const img = el.querySelector("img");
     img.src = resolveIcon(a.icon);
     el.querySelector(".label").textContent = names[a.id] || a.title;
+    let moved = false;
+    el.addEventListener("click", (e) => {
+      if (moved || e.target.tagName === "INPUT") return;
+      launcher.launch(a.id);
+    });
     el.addEventListener("dblclick", () => launcher.launch(a.id));
 
     const pos = place(a.id);
@@ -143,6 +148,7 @@ export function renderDesktopIcons(apps, launcher, profileId = "default") {
       if (e.button !== 0 || e.target.tagName === "INPUT") return;
       e.preventDefault();
       selectIcon(el);
+      moved = false;
       const startX = e.clientX;
       const startY = e.clientY;
       const rect = el.getBoundingClientRect();
@@ -150,6 +156,7 @@ export function renderDesktopIcons(apps, launcher, profileId = "default") {
       const offY = startY - rect.top;
       el.classList.add("dragging");
       const move = (ev) => {
+        moved = true;
         el.style.left = `${ev.clientX - offX}px`;
         el.style.top = `${ev.clientY - offY}px`;
       };
