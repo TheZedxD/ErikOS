@@ -14,10 +14,31 @@
     <div id="taskbar">
       <button id="start-button">Start</button>
       <div id="taskbar-windows"></div>
-      <div id="tray">
-        <img id="tray-links-icon" alt="Links" src="/icons/link-manager.png" />
-        <img id="tray-volume-icon" alt="Volume" src="/icons/media-player.png" />
-        <img id="tray-snip-icon" alt="Snip" src="/icons/recorder.png" />
+      <div id="tray" class="system-tray">
+        <div class="tray-icon-wrapper">
+          <img id="tray-links-icon" 
+               alt="Links" 
+               src="/icons/link-manager.png" 
+               width="20" 
+               height="20" 
+               class="tray-icon" />
+        </div>
+        <div class="tray-icon-wrapper">
+          <img id="tray-volume-icon" 
+               alt="Volume" 
+               src="/icons/media-player.png" 
+               width="20" 
+               height="20" 
+               class="tray-icon" />
+        </div>
+        <div class="tray-icon-wrapper">
+          <img id="tray-snip-icon" 
+               alt="Snip" 
+               src="/icons/recorder.png" 
+               width="20" 
+               height="20" 
+               class="tray-icon" />
+        </div>
       </div>
     </div>
     <div id="start-menu" role="menu" hidden><ul id="start-app-list"></ul></div>

@@ -312,6 +312,21 @@ body {
   flex: none;
 }
 
+.tray-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;  /* 20px icon + 1px padding each side */
+  height: 22px;
+  flex: none;
+}
+
+.tray-icon {
+  width: 20px !important;
+  height: 20px !important;
+  display: block;
+}
+
 /* Fix taskbar window buttons */
 #taskbar-windows {
   flex: 1;
