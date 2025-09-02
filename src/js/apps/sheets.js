@@ -8,7 +8,7 @@ export function launch(ctx) {
 }
 export function mount(winEl, ctx, fileData) {
   const windowManager = ctx.windowManager;
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.height = '100%';

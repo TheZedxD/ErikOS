@@ -8,11 +8,12 @@ export function launch(ctx) {
 }
 export function mount(winEl, ctx) {
   if (!currentUser) {
-    winEl.textContent = 'No user logged in';
+    const container = winEl.querySelector('.content');
+    if (container) container.textContent = 'No user logged in';
     return;
   }
 
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.classList.add('file-manager');
   const content = document.createElement('div');
   content.classList.add('file-manager-content');

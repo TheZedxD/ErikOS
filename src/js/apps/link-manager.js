@@ -8,7 +8,8 @@ export function launch(ctx) {
 }
 export function mount(winEl, ctx) {
   if (!currentUser) {
-    winEl.textContent = 'Please log in to manage links';
+    const container = winEl.querySelector('.content');
+    if (container) container.textContent = 'Please log in to manage links';
     return;
   }
 
@@ -18,7 +19,7 @@ export function mount(winEl, ctx) {
     return { type: 'link', name: item.name, url: item.url };
     });
 
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.classList.add('file-manager');
   const toolbar = document.createElement('div');
   toolbar.classList.add('file-manager-toolbar');

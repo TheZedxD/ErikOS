@@ -9,7 +9,7 @@ export function launch(ctx, initialText = "") {
 }
 
 export function mount(winEl, ctx, initialText = "") {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.height = "100%";

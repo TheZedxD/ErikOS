@@ -31,7 +31,10 @@ export class WindowManager {
       '</div>';
     const body = document.createElement("div");
     body.className = "window-body";
-    body.appendChild(contentEl);
+    const contentWrapper = document.createElement("div");
+    contentWrapper.className = "content";
+    body.appendChild(contentWrapper);
+    contentWrapper.appendChild(contentEl);
 
     win.append(header, body);
 
@@ -50,7 +53,7 @@ export class WindowManager {
       id,
       appId,
       element: win,
-      body,
+      body: contentWrapper,
       header,
       resizers,
       taskBtn: null,

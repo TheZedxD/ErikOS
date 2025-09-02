@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.style.cssText = 'display:flex; flex-direction:column; height:100%; padding:8px;';
 
   const totalPanel = document.createElement('div');

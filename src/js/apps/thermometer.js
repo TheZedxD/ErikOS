@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  const container = winEl;
+  const container = winEl.querySelector('.content');
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.gap = '8px';
