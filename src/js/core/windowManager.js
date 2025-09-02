@@ -111,6 +111,10 @@ export class WindowManager {
     btn.className = "task-btn";
     btn.textContent = title;
     btn.dataset.win = id;
+    // Add size constraints
+    btn.style.maxWidth = '180px';
+    btn.style.height = '24px';
+    btn.style.flexShrink = '0';
     btn.addEventListener("click", () => this.toggleWindow(id));
     this.taskbar?.appendChild(btn);
     return btn;
