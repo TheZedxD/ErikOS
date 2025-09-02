@@ -171,7 +171,6 @@
 /* Classic 3D styling for buttons and similar controls */
 button,
 #system-clock,
-#system-tray img,
 .link-tree li button {
   background: #c0c0c0;
   border-style: solid;
@@ -184,7 +183,6 @@ button,
 
 button:hover,
 #system-clock:hover,
-#system-tray img:hover,
 .link-tree li button:hover,
 .task-btn:hover,
 .window-header .window-controls button:hover {
@@ -193,7 +191,6 @@ button:hover,
 
 button:active,
 #system-clock:active,
-#system-tray img:active,
 .link-tree li button:active {
   border-color: #000000 #ffffff #ffffff #000000;
   padding: 3px 11px 1px 13px;
@@ -280,21 +277,54 @@ body {
   color: var(--icon-text);
 }
 
-/* System tray container */
-#system-tray {
+#tray img {
+  width: 20px !important;
+  height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  flex: none;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Prevent flex container from expanding icons */
+#tray {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-left: auto;
   margin-right: 4px;
   height: 100%;
+  flex: none;  /* Prevent tray from growing */
 }
 
-#system-tray img {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  padding: 1px;
+/* Explicit constraints for each tray icon by ID */
+#tray-links-icon,
+#tray-volume-icon,
+#tray-snip-icon {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  display: inline-block;
+  flex: none;
+}
+
+/* Fix taskbar window buttons */
+#taskbar-windows {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  height: 100%;
+  min-width: 0;  /* Critical for flex overflow */
+}
+
+#taskbar-windows .task-btn {
+  flex-shrink: 0;
+  max-width: 200px;
 }
 
 /* Tray menu styling */
