@@ -22,13 +22,13 @@ export class WindowManager {
 
     const header = document.createElement("div");
     header.className = "window-header";
-    header.innerHTML =
-      `<span class="title">${title}</span>` +
-      '<div class="window-controls">' +
-      '<button data-act="min" aria-label="Minimize">_</button>' +
-      '<button data-act="max" aria-label="Maximize">▢</button>' +
-      '<button data-act="close" aria-label="Close">×</button>' +
-      '</div>';
+    header.innerHTML = `
+      <span class="title">${title}</span>
+      <div class="window-controls">
+        <button data-act="min" aria-label="Minimize">_</button>
+        <button data-act="max" aria-label="Maximize">▢</button>
+        <button data-act="close" aria-label="Close">×</button>
+      </div>`;
     const body = document.createElement("div");
     body.className = "window-body";
     const contentWrapper = document.createElement("div");

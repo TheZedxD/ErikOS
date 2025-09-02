@@ -64,7 +64,7 @@ export function mount(winEl, ctx) {
       const audio = document.createElement('audio');
       audio.controls = true;
       audio.src = blobUrl;
-      addAudioElement(audio);
+      ctx.globals.addAudioElement?.(audio);
       audio.play();
       ctx.windowManager.createWindow('recording', 'Recording', audio);
     }

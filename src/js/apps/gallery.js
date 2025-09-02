@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  addLog('Gallery opened');
+  ctx.globals.addLog?.('Gallery opened');
   const container = winEl.classList.contains('window')
     ? winEl.querySelector('.content')
     : winEl;

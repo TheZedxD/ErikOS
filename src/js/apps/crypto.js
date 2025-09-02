@@ -79,8 +79,8 @@ export function mount(winEl, ctx) {
   controlPanel.append(addBtn, refreshBtn);
   container.append(totalPanel, holdingsPanel, controlPanel);
 
-  const portfolio = currentUser && Array.isArray(currentUser.portfolio)
-    ? [...currentUser.portfolio]
+  const portfolio = ctx.globals.currentUser && Array.isArray(ctx.globals.currentUser.portfolio)
+    ? [...ctx.globals.currentUser.portfolio]
     : [];
 
   async function fetchPrices(ids) {
@@ -118,7 +118,10 @@ export function mount(winEl, ctx) {
       removeBtn.style.cssText = 'padding:2px 6px; font-size:11px;';
       removeBtn.onclick = () => {
         portfolio.splice(idx,1);
-        if (currentUser) { currentUser.portfolio = portfolio; saveProfiles(profiles); }
+        if (ctx.globals.currentUser) {
+          ctx.globals.currentUser.portfolio = portfolio;
+          ctx.globals.saveProfiles?.(ctx.globals.profiles);
+        }
         refresh();
       };
 
@@ -145,7 +148,10 @@ export function mount(winEl, ctx) {
     const sym = id.trim().toLowerCase();
     const existing = portfolio.find(c => c.id === sym);
     if (existing) existing.amount += amount; else portfolio.push({id: sym, amount});
-    if (currentUser) { currentUser.portfolio = portfolio; saveProfiles(profiles); }
+    if (ctx.globals.currentUser) {
+      ctx.globals.currentUser.portfolio = portfolio;
+      ctx.globals.saveProfiles?.(ctx.globals.profiles);
+    }
     refresh();
   });
 

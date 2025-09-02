@@ -25,7 +25,7 @@ export function mount(winEl, ctx) {
   function render() {
     logList.innerHTML = '';
     const selected = dateSelect.value;
-    const entries = logsData[selected] || [];
+    const entries = ctx.globals.logsData[selected] || [];
     entries.forEach(entry => {
       const p = document.createElement('div');
       p.textContent = `[${entry.time}] ${entry.message}`;
@@ -35,7 +35,7 @@ export function mount(winEl, ctx) {
 
   function refreshDates() {
     dateSelect.innerHTML = '';
-    const keys = Object.keys(logsData).sort().reverse();
+    const keys = Object.keys(ctx.globals.logsData).sort().reverse();
     keys.forEach(k => {
       const opt = document.createElement('option');
       opt.value = k; opt.textContent = k; dateSelect.append(opt);
@@ -50,8 +50,8 @@ export function mount(winEl, ctx) {
 
   clearBtn.addEventListener('click', () => {
     if (confirm('Clear all logs?')) {
-      logsData = {};
-      saveLogs();
+      ctx.globals.logsData = {};
+      ctx.globals.saveLogs?.();
       refreshDates();
     }
   });

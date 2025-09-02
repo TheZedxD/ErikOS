@@ -7,7 +7,7 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  addLog('Media Player opened');
+  ctx.globals.addLog?.('Media Player opened');
   const container = winEl.classList.contains('window')
     ? winEl.querySelector('.content')
     : winEl;
@@ -42,14 +42,14 @@ export function mount(winEl, ctx) {
       currentEl.style.maxWidth = '100%';
       currentEl.style.maxHeight = '100%';
       currentEl.src = url;
-      addAudioElement(currentEl);
+      ctx.globals.addAudioElement?.(currentEl);
       content.append(currentEl);
       currentEl.play();
     } else if (file.type.startsWith('audio')) {
       currentEl = document.createElement('audio');
       currentEl.controls = true;
       currentEl.src = url;
-      addAudioElement(currentEl);
+      ctx.globals.addAudioElement?.(currentEl);
       content.append(currentEl);
       currentEl.play();
     } else {

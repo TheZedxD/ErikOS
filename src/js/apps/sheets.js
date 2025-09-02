@@ -29,8 +29,8 @@ export function mount(winEl, ctx, fileData) {
     }
     return { name: name || `Sheet${sheets.length + 1}`, data: initial };
   }
-  if (!fileData && currentUser && Array.isArray(currentUser.sheets)) {
-    sheets = currentUser.sheets.map(s => ({ name: s.name, data: s.data.map(row => row.slice()) }));
+  if (!fileData && ctx.globals.currentUser && Array.isArray(ctx.globals.currentUser.sheets)) {
+    sheets = ctx.globals.currentUser.sheets.map(s => ({ name: s.name, data: s.data.map(row => row.slice()) }));
   }
   if (fileData) {
     try {
@@ -50,9 +50,9 @@ export function mount(winEl, ctx, fileData) {
   if (sheets.length === 0) sheets.push(createSheet('Sheet1'));
   let currentSheetIndex = 0;
   function persist() {
-    if (currentUser) {
-      currentUser.sheets = sheets;
-      saveProfiles(profiles);
+    if (ctx.globals.currentUser) {
+      ctx.globals.currentUser.sheets = sheets;
+      ctx.globals.saveProfiles?.(ctx.globals.profiles);
     }
   }
   persist();

@@ -7,14 +7,14 @@ export function launch(ctx) {
   mount(win, ctx);
 }
 export function mount(winEl, ctx) {
-  if (!currentUser) {
+  if (!ctx.globals.currentUser) {
     const container = winEl.querySelector('.content');
     if (container) container.textContent = 'Please log in to manage links';
     return;
   }
 
-  if (!Array.isArray(currentUser.links)) currentUser.links = [];
-  currentUser.links = currentUser.links.map(item => {
+  if (!Array.isArray(ctx.globals.currentUser.links)) ctx.globals.currentUser.links = [];
+  ctx.globals.currentUser.links = ctx.globals.currentUser.links.map(item => {
     if (item.type) return item;
     return { type: 'link', name: item.name, url: item.url };
     });
@@ -34,16 +34,16 @@ export function mount(winEl, ctx) {
   container.append(toolbar, content);
 
   function getNodeByPath(path) {
-    let node = { children: currentUser.links };
+    let node = { children: ctx.globals.currentUser.links };
     path.forEach(idx => { node = node.children[idx]; });
     return node;
   }
 
   function render() {
     content.innerHTML = '';
-    const ul = buildList(currentUser.links, []);
+    const ul = buildList(ctx.globals.currentUser.links, []);
     content.append(ul);
-    saveProfiles(profiles);
+    ctx.globals.saveProfiles?.(ctx.globals.profiles);
   }
 
   function buildList(items, path) {
@@ -127,11 +127,11 @@ export function mount(winEl, ctx) {
         if (JSON.stringify(srcPath) === JSON.stringify(destPath)) return;
         const srcParent = srcPath.slice(0,-1);
         const srcIdx = srcPath[srcPath.length-1];
-        const srcContainer = srcParent.length===0 ? {children: currentUser.links} : getNodeByPath(srcParent);
+    const srcContainer = srcParent.length===0 ? {children: ctx.globals.currentUser.links} : getNodeByPath(srcParent);
         const [moved] = srcContainer.children.splice(srcIdx,1);
         const destParent = destPath.slice(0,-1);
         const destIdx = destPath[destPath.length-1];
-        const destContainer = destParent.length===0 ? {children: currentUser.links} : getNodeByPath(destParent);
+    const destContainer = destParent.length===0 ? {children: ctx.globals.currentUser.links} : getNodeByPath(destParent);
         const destNode = getNodeByPath(destPath);
         if (destNode.type === 'folder') {
           if (!destNode.children) destNode.children = [];
@@ -149,7 +149,7 @@ export function mount(winEl, ctx) {
   addFolderBtn.addEventListener('click', () => {
     const name = prompt('Folder name');
     if (!name) return;
-    currentUser.links.push({ type: 'folder', name, children: [] });
+    ctx.globals.currentUser.links.push({ type: 'folder', name, children: [] });
     render();
   });
   addLinkBtn.addEventListener('click', () => {
@@ -157,7 +157,7 @@ export function mount(winEl, ctx) {
     if (!name) return;
     const url = prompt('URL');
     if (!url) return;
-    currentUser.links.push({ type: 'link', name, url });
+    ctx.globals.currentUser.links.push({ type: 'link', name, url });
     render();
   });
 
