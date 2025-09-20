@@ -38,8 +38,12 @@ class WindowManager {
       '<button aria-label="Maximize"></button>' +
       '<button aria-label="Close"></button>' +
       '</div>';
+    const contentWrapper = document.createElement('div');
+    contentWrapper.classList.add('content');
+    if (contentEl) contentWrapper.appendChild(contentEl);
+
     win.appendChild(titleBar);
-    win.appendChild(contentEl);
+    win.appendChild(contentWrapper);
 
     const [minBtn,, closeBtn] = titleBar.querySelectorAll('button');
     minBtn.addEventListener('click', () => this.minimizeWindow(id));
@@ -87,6 +91,7 @@ class WindowManager {
   closeWindow(id) {
     const win = this.windows.get(id);
     if (!win) return;
+    win.dispatchEvent(new CustomEvent('erikos:close'));
     win.remove();
     this.windows.delete(id);
     const btn = this.taskbar.querySelector(`button[data-id="${id}"]`);
@@ -105,6 +110,7 @@ class WindowManager {
 
   clear() {
     this.windows.forEach((win, id) => {
+      win.dispatchEvent(new CustomEvent('erikos:close'));
       win.remove();
       const btn = this.taskbar.querySelector(`button[data-id="${id}"]`);
       if (btn) btn.remove();
