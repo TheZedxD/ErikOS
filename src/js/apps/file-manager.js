@@ -1,6 +1,7 @@
 import * as notepad from './notepad.js';
 import * as gallery from './gallery.js';
 import * as sheets from './sheets.js';
+import * as mediaPlayer from './media-player.js';
 import { APIClient } from '../utils/api.js';
 import { pickOpen } from '../utils/file-dialogs.js';
 
@@ -450,15 +451,32 @@ export function mount(winEl, ctx) {
     const ext = item.name.split('.').pop().toLowerCase();
     const url = fileURL(item.path);
     try {
-      if (['txt', 'js', 'json', 'md', 'py', 'css', 'html'].includes(ext)) {
+      if (['txt', 'js', 'json', 'md', 'py', 'css', 'html', 'log'].includes(ext)) {
         const res = await api.get(url, {}, 'text');
         if (!res.ok) throw new Error(res.error);
-        notepad.launch(ctx, res.data);
-      } else if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(ext)) {
+        notepad.launch(ctx, {
+          content: res.data,
+          name: item.name,
+          path: item.path,
+        });
+      } else if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'avif'].includes(ext)) {
         const res = await api.get(url, {}, 'blob');
         if (!res.ok) throw new Error(res.error);
-        const objectUrl = URL.createObjectURL(res.data);
-        gallery.launch(ctx, [objectUrl]);
+        gallery.launch(ctx, [
+          {
+            name: item.name,
+            path: item.path,
+            blob: res.data,
+          },
+        ]);
+      } else if (['mp3', 'wav', 'ogg', 'webm', 'mp4', 'm4a', 'm4v', 'mov'].includes(ext)) {
+        const res = await api.get(url, {}, 'blob');
+        if (!res.ok) throw new Error(res.error);
+        mediaPlayer.launch(ctx, {
+          name: item.name,
+          path: item.path,
+          blob: res.data,
+        });
       } else if (ext === 'csv') {
         const res = await api.get(url, {}, 'text');
         if (!res.ok) throw new Error(res.error);
