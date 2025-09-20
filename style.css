@@ -1018,6 +1018,18 @@ body {
   max-height: calc(100% - 40px);
 }
 
+.terminal-output .terminal-command {
+  color: #7cff7c;
+}
+
+.terminal-output .terminal-info {
+  color: #66ccff;
+}
+
+.terminal-output .terminal-error {
+  color: #ff6666;
+}
+
 .terminal-input {
   padding: 4px;
   border: none;

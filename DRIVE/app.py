@@ -715,6 +715,11 @@ def execute_command():
         return json_error(str(exc))
     if not tokens:
         return json_error("Empty command")
+
+    forbidden_symbols = {"&", "&&", "|", "||", ";", ">", "<"}
+    if any(tok in forbidden_symbols for tok in tokens[1:]):
+        return json_error("Command contains unsupported operators")
+
     if tokens[0] not in ALLOWED_COMMANDS:
         return json_error("Command not permitted")
 
@@ -723,7 +728,27 @@ def execute_command():
 
     def _run():
         try:
-            proc = subprocess.Popen(tokens, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            popen_args: list[str] | str
+            use_shell = False
+
+            if os.name == "nt":
+                builtin_commands = {"dir", "echo", "type", "cls"}
+                if tokens[0].lower() in builtin_commands:
+                    command_line = subprocess.list2cmdline(tokens)
+                    popen_args = f"cmd /c {command_line}"
+                    use_shell = True
+                else:
+                    popen_args = tokens
+            else:
+                popen_args = tokens
+
+            proc = subprocess.Popen(
+                popen_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                shell=use_shell,
+            )
             out, err = proc.communicate()
             buffer.write((out or "") + (err or ""))
             command_jobs[job_id]["returncode"] = proc.returncode
