@@ -224,7 +224,23 @@ export class WindowManager {
   closeWindow(id) {
     const info = this.windows.get(id);
     if (!info) return;
+    const detail = { id, appId: info.appId, element: info.element };
+    const localEvent = new CustomEvent("window-before-close", {
+      detail,
+      cancelable: true,
+    });
+    info.element.dispatchEvent(localEvent);
+    if (localEvent.defaultPrevented) return;
+
+    const globalBefore = new CustomEvent("window-before-close", {
+      detail,
+      cancelable: true,
+    });
+    window.dispatchEvent(globalBefore);
+    if (globalBefore.defaultPrevented) return;
+
     const wasActive = this.activeId === id;
+    info.element.dispatchEvent(new CustomEvent("window-closed", { detail }));
     info.element.remove();
     info.taskBtn?.remove();
     this.windows.delete(id);
@@ -234,6 +250,7 @@ export class WindowManager {
         new CustomEvent("window-blurred", { detail: { id } }),
       );
     }
+    window.dispatchEvent(new CustomEvent("window-closed", { detail }));
   }
 
   _saveBounds(info) {

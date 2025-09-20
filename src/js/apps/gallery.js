@@ -1,4 +1,6 @@
 
+import { pickOpen } from '../utils/file-dialogs.js';
+
 export const meta = { id: 'gallery', name: 'Gallery', icon: '/icons/gallery.png' };
 export function launch(ctx, initialImages = []) {
   const content = document.createElement('div');
@@ -62,40 +64,37 @@ export function mount(winEl, ctx, initialImages = []) {
   });
 
   addBtn.addEventListener('click', async () => {
-    if (window.showOpenFilePicker) {
-      try {
-        const handles = await window.showOpenFilePicker({
-          types: [
-            {
-              description: 'Images',
-              accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.bmp'] },
-            },
-          ],
-          multiple: true,
-        });
-        for (const handle of handles) {
-          const file = await handle.getFile();
-          const url = URL.createObjectURL(file);
-          addImageFromSource(url);
-        }
-      } catch (err) {
-        console.error(err);
+    try {
+      const selection = await (ctx?.fileDialogs?.pickOpen
+        ? ctx.fileDialogs.pickOpen({
+            types: [
+              {
+                description: 'Images',
+                accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'] },
+              },
+            ],
+            multiple: true,
+          })
+        : pickOpen({
+            types: [
+              {
+                description: 'Images',
+                accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'] },
+              },
+            ],
+            multiple: true,
+          }));
+      const entries = Array.isArray(selection)
+        ? selection
+        : selection
+        ? [selection]
+        : [];
+      for (const entry of entries) {
+        const url = URL.createObjectURL(entry.file);
+        addImageFromSource(url);
       }
-    } else {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.multiple = true;
-      input.style.display = 'none';
-      document.body.append(input);
-      input.addEventListener('change', () => {
-        Array.from(input.files).forEach((file) => {
-          const url = URL.createObjectURL(file);
-          addImageFromSource(url);
-        });
-        input.remove();
-      });
-      input.click();
+    } catch (err) {
+      console.error(err);
     }
   });
 }
