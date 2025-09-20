@@ -4,14 +4,15 @@
 import { windowManager } from './core/windowManager.js';
 import { initDesktop, teardownDesktop, renderDesktopIcons } from './core/desktop.js';
 import { registerTray, teardownTray } from './core/tray.js';
-import { setCurrentUser } from './core/globals.js';
+import { addLog, ensureCurrentUser, setCurrentUser, currentUser } from './core/globals.js';
 import { loadApps, validateApps } from './core/appRegistry.js';
 import { launchApp } from './core/launcher.js';
 
 let apps = [];
 
-function login() {
-  setCurrentUser({ id: 'guest', name: 'Guest' });
+function login(preferredProfileId) {
+  const user = ensureCurrentUser(preferredProfileId);
+  addLog(`User logged in: ${user.name}`);
 
   console.time('BOOT: desktop');
   initDesktop(apps);
@@ -23,12 +24,16 @@ function login() {
   console.timeEnd('BOOT: tray');
 }
 
-export function logout() {
+export function logout(event) {
   teardownDesktop();
   teardownTray();
   windowManager.clear();
+  if (currentUser) {
+    addLog('User logged out');
+  }
   setCurrentUser(null);
-  login();
+  const nextProfileId = event?.detail?.profileId;
+  login(nextProfileId);
 }
 
 export async function bootstrap() {
