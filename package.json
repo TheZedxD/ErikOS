@@ -1,6 +1,6 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node tools/verify-app-registry.js && node tests/test_frontend.js && node tests/windowManager.test.js"
+    "test": "node tools/verify-app-registry.js && node tests/test_frontend.js && node tests/windowManager.test.js && node tests/notepad.test.js"
   }
 }

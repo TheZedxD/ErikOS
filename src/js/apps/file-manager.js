@@ -2,6 +2,7 @@ import * as notepad from './notepad.js';
 import * as gallery from './gallery.js';
 import * as sheets from './sheets.js';
 import { APIClient } from '../utils/api.js';
+import { pickOpen } from '../utils/file-dialogs.js';
 
 export const meta = { id: 'file-manager', name: 'File Manager', icon: '/icons/file-manager.png' };
 
@@ -37,13 +38,22 @@ export function mount(winEl, ctx) {
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.placeholder = 'Search';
+  const viewToggle = document.createElement('div');
+  viewToggle.classList.add('file-view-toggle');
+  const listViewBtn = document.createElement('button');
+  listViewBtn.textContent = 'List';
+  const gridViewBtn = document.createElement('button');
+  gridViewBtn.textContent = 'Grid';
+  viewToggle.append(listViewBtn, gridViewBtn);
+
   toolbar.append(
     newFolderBtn,
     uploadBtn,
     renameBtn,
     deleteBtn,
     refreshBtn,
-    searchInput
+    searchInput,
+    viewToggle,
   );
 
   const body = document.createElement('div');
@@ -52,13 +62,23 @@ export function mount(winEl, ctx) {
   tree.classList.add('file-tree');
   const details = document.createElement('div');
   details.classList.add('file-details');
+  details.tabIndex = 0;
   body.append(tree, details);
-  container.append(toolbar, body);
+  const breadcrumbs = document.createElement('div');
+  breadcrumbs.classList.add('file-breadcrumbs');
+
+  container.append(toolbar, breadcrumbs, body);
 
   let currentPath = '';
   let currentItems = [];
-  let selected = null;
+  let selectedItem = null;
+  let selectedIndex = -1;
+  let viewMode = 'list';
   const treeNodes = new Map();
+  const dialogs = {
+    pickOpen: ctx?.fileDialogs?.pickOpen ?? pickOpen,
+  };
+  let renderedItems = [];
 
   function getUserId() {
     return (
@@ -105,7 +125,7 @@ export function mount(winEl, ctx) {
   }
 
   function updateToolbarState() {
-    const canModify = !!(selected && !selected.readonly);
+    const canModify = !!(selectedItem && !selectedItem.readonly);
     renameBtn.disabled = !canModify;
     deleteBtn.disabled = !canModify;
   }
@@ -122,11 +142,12 @@ export function mount(winEl, ctx) {
   }
 
   async function renameItem() {
-    if (!selected || selected.readonly) return alert('Select an item first');
-    const newName = prompt('New name', selected.name);
+    if (!selectedItem || selectedItem.readonly)
+      return alert('Select an item first');
+    const newName = prompt('New name', selectedItem.name);
     if (!newName) return;
     const result = await api.postJSON('/api/rename', {
-      path: selected.path,
+      path: selectedItem.path,
       new_name: newName,
     });
     if (!result.ok || result.data.ok === false) alert(result.error || result.data.error);
@@ -134,9 +155,9 @@ export function mount(winEl, ctx) {
   }
 
   async function deleteItem() {
-    if (!selected || selected.readonly) return alert('Select an item first');
-    if (!confirm('Delete ' + selected.name + '?')) return;
-    const result = await api.postJSON('/api/delete', { path: selected.path });
+    if (!selectedItem || selectedItem.readonly) return alert('Select an item first');
+    if (!confirm('Delete ' + selectedItem.name + '?')) return;
+    const result = await api.postJSON('/api/delete', { path: selectedItem.path });
     if (!result.ok || result.data.ok === false) alert(result.error || result.data.error);
     await loadDirectory(currentPath);
   }
@@ -154,31 +175,16 @@ export function mount(winEl, ctx) {
     }
 
     try {
-      if (window.showOpenFilePicker) {
-        const handles = await window.showOpenFilePicker({
-          multiple: true,
-        });
-        for (const handle of handles) {
-          const file = await handle.getFile();
-          await uploadFile(file);
-        }
-        return;
-      }
+      const selection = await dialogs.pickOpen({ multiple: true });
+      const entries = Array.isArray(selection)
+        ? selection
+        : selection
+        ? [selection]
+        : [];
+      for (const entry of entries) await uploadFile(entry.file);
     } catch (err) {
       console.error('File picker failed', err);
     }
-
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.style.display = 'none';
-    input.addEventListener('change', async () => {
-      const files = Array.from(input.files || []);
-      for (const file of files) await uploadFile(file);
-      input.remove();
-    });
-    document.body.append(input);
-    input.click();
   }
 
   window.fileManagerContext = {
@@ -186,7 +192,7 @@ export function mount(winEl, ctx) {
     renameItem,
     deleteItem,
     uploadFile: uploadFileAction,
-    hasSelection: () => !!(selected && !selected.readonly),
+    hasSelection: () => !!(selectedItem && !selectedItem.readonly),
   };
 
   function clearTree() {
@@ -280,38 +286,29 @@ export function mount(winEl, ctx) {
     buildTree('', rootNode, true).then(() => expandToPath(currentPath));
   }
 
-  function selectRow(item, row) {
+  function selectRow(item, row, index) {
     details
-      .querySelectorAll('.file-item.selected')
+      .querySelectorAll('.file-item.selected, .file-card.selected')
       .forEach((el) => el.classList.remove('selected'));
     if (!item || item.readonly) {
-      selected = null;
+      selectedItem = null;
+      selectedIndex = -1;
       updateToolbarState();
       return;
     }
     row.classList.add('selected');
-    selected = item;
+    selectedItem = item;
+    selectedIndex = index;
     updateToolbarState();
   }
 
   function renderDetails() {
     details.innerHTML = '';
-    selected = null;
+    selectedItem = null;
+    selectedIndex = -1;
     updateToolbarState();
-
-    const header = document.createElement('div');
-    header.classList.add('file-item', 'file-header');
-    const nameHead = document.createElement('span');
-    nameHead.classList.add('file-name');
-    nameHead.textContent = 'Name';
-    const sizeHead = document.createElement('span');
-    sizeHead.classList.add('file-size');
-    sizeHead.textContent = 'Size';
-    const modHead = document.createElement('span');
-    modHead.classList.add('file-modified');
-    modHead.textContent = 'Modified';
-    header.append(nameHead, sizeHead, modHead);
-    details.append(header);
+    listViewBtn.classList.toggle('active', viewMode === 'list');
+    gridViewBtn.classList.toggle('active', viewMode === 'grid');
 
     const query = searchInput.value.trim().toLowerCase();
     const filtered = currentItems
@@ -333,6 +330,8 @@ export function mount(winEl, ctx) {
     }
     items.push(...filtered);
 
+    renderedItems = items;
+
     if (items.length === 0) {
       const empty = document.createElement('div');
       empty.classList.add('file-details-empty');
@@ -341,10 +340,33 @@ export function mount(winEl, ctx) {
       return;
     }
 
-    items.forEach((item) => {
+    if (viewMode === 'grid') {
+      renderGrid(items);
+    } else {
+      renderList(items);
+    }
+  }
+
+  function renderList(items) {
+    const header = document.createElement('div');
+    header.classList.add('file-item', 'file-header');
+    const nameHead = document.createElement('span');
+    nameHead.classList.add('file-name');
+    nameHead.textContent = 'Name';
+    const sizeHead = document.createElement('span');
+    sizeHead.classList.add('file-size');
+    sizeHead.textContent = 'Size';
+    const modHead = document.createElement('span');
+    modHead.classList.add('file-modified');
+    modHead.textContent = 'Modified';
+    header.append(nameHead, sizeHead, modHead);
+    details.append(header);
+
+    items.forEach((item, index) => {
       const row = document.createElement('div');
       row.classList.add('file-item');
       if (item.isParent) row.classList.add('file-parent');
+      row.dataset.index = String(index);
 
       const nameCell = document.createElement('span');
       nameCell.classList.add('file-name');
@@ -362,11 +384,11 @@ export function mount(winEl, ctx) {
 
       row.addEventListener('click', (ev) => {
         ev.stopPropagation();
-        selectRow(item, row);
+        selectRow(item, row, index);
       });
       row.addEventListener('contextmenu', (ev) => {
         ev.preventDefault();
-        selectRow(item, row);
+        selectRow(item, row, index);
       });
       row.addEventListener('dblclick', (ev) => {
         ev.stopPropagation();
@@ -375,6 +397,42 @@ export function mount(winEl, ctx) {
 
       details.append(row);
     });
+  }
+
+  function renderGrid(items) {
+    const grid = document.createElement('div');
+    grid.classList.add('file-grid');
+    items.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.classList.add('file-card');
+      if (item.isParent) card.classList.add('file-parent');
+      card.dataset.index = String(index);
+
+      const icon = document.createElement('div');
+      icon.classList.add('file-card-icon');
+      icon.textContent = item.isDir ? '📁' : '📄';
+      const label = document.createElement('div');
+      label.classList.add('file-card-label');
+      label.textContent = item.name;
+
+      card.append(icon, label);
+
+      card.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        selectRow(item, card, index);
+      });
+      card.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        selectRow(item, card, index);
+      });
+      card.addEventListener('dblclick', (ev) => {
+        ev.stopPropagation();
+        openItem(item);
+      });
+
+      grid.append(card);
+    });
+    details.append(grid);
   }
 
   async function openItem(item) {
@@ -426,6 +484,8 @@ export function mount(winEl, ctx) {
 
   searchInput.addEventListener('input', renderDetails);
   refreshBtn.addEventListener('click', () => loadDirectory(currentPath));
+  listViewBtn.addEventListener('click', () => setViewMode('list'));
+  gridViewBtn.addEventListener('click', () => setViewMode('grid'));
 
   newFolderBtn.addEventListener('click', newFolder);
   renameBtn.addEventListener('click', renameItem);
@@ -434,11 +494,56 @@ export function mount(winEl, ctx) {
 
   details.addEventListener('click', (ev) => {
     if (ev.target === details) {
-      selected = null;
+      selectedItem = null;
+      selectedIndex = -1;
       updateToolbarState();
       details
-        .querySelectorAll('.file-item.selected')
+        .querySelectorAll('.file-item.selected, .file-card.selected')
         .forEach((el) => el.classList.remove('selected'));
+    }
+  });
+
+  details.addEventListener('keydown', (ev) => {
+    if (!renderedItems.length) return;
+    const maxIndex = renderedItems.length - 1;
+    const step = viewMode === 'grid' ? Math.max(1, Math.floor(details.clientWidth / 120)) : 1;
+    let nextIndex = selectedIndex;
+    switch (ev.key) {
+      case 'ArrowDown':
+        ev.preventDefault();
+        nextIndex = Math.min(maxIndex, selectedIndex + (viewMode === 'grid' ? step : 1));
+        break;
+      case 'ArrowUp':
+        ev.preventDefault();
+        nextIndex = Math.max(0, selectedIndex - (viewMode === 'grid' ? step : 1));
+        break;
+      case 'ArrowRight':
+        if (viewMode === 'grid') {
+          ev.preventDefault();
+          nextIndex = Math.min(maxIndex, selectedIndex + 1);
+        }
+        break;
+      case 'ArrowLeft':
+        if (viewMode === 'grid') {
+          ev.preventDefault();
+          nextIndex = Math.max(0, selectedIndex - 1);
+        }
+        break;
+      case 'Enter':
+        if (selectedItem) {
+          ev.preventDefault();
+          openItem(selectedItem);
+        }
+        return;
+      default:
+        return;
+    }
+    if (nextIndex < 0 || Number.isNaN(nextIndex)) nextIndex = 0;
+    if (nextIndex > maxIndex) nextIndex = maxIndex;
+    const target = details.querySelector(`[data-index="${nextIndex}"]`);
+    if (target) {
+      selectRow(renderedItems[nextIndex], target, nextIndex);
+      target.scrollIntoView({ block: 'nearest' });
     }
   });
 
@@ -455,5 +560,35 @@ export function mount(winEl, ctx) {
     currentItems = data.items || [];
     renderTreeRoot();
     renderDetails();
+    renderBreadcrumbs();
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    listViewBtn.classList.toggle('active', mode === 'list');
+    gridViewBtn.classList.toggle('active', mode === 'grid');
+    renderDetails();
+  }
+
+  function renderBreadcrumbs() {
+    breadcrumbs.innerHTML = '';
+    const segments = currentPath.split('/').filter(Boolean);
+    const makeBtn = (label, pathValue) => {
+      const btn = document.createElement('button');
+      btn.textContent = label || 'Root';
+      btn.addEventListener('click', () => loadDirectory(pathValue));
+      return btn;
+    };
+
+    breadcrumbs.append(makeBtn('Root', ''));
+    let accumulated = '';
+    segments.forEach((segment) => {
+      const separator = document.createElement('span');
+      separator.textContent = '›';
+      separator.classList.add('breadcrumb-separator');
+      breadcrumbs.append(separator);
+      accumulated = accumulated ? `${accumulated}/${segment}` : segment;
+      breadcrumbs.append(makeBtn(segment, accumulated));
+    });
   }
 }

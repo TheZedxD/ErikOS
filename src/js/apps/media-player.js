@@ -1,4 +1,6 @@
 
+import { pickOpen } from '../utils/file-dialogs.js';
+
 export const meta = { id: 'media-player', name: 'Media Player', icon: '/icons/media-player.png' };
 export function launch(ctx) {
   const content = document.createElement('div');
@@ -61,34 +63,32 @@ export function mount(winEl, ctx) {
 
   openBtn.addEventListener('click', async () => {
     try {
-      if (window.showOpenFilePicker) {
-        const [handle] = await window.showOpenFilePicker({
-          types: [
-            {
-              description: 'Media',
-              accept: {
-                'audio/*': ['.mp3', '.wav', '.ogg'],
-                'video/*': ['.mp4', '.webm', '.ogg'],
+      const selection = await (ctx?.fileDialogs?.pickOpen
+        ? ctx.fileDialogs.pickOpen({
+            types: [
+              {
+                description: 'Media',
+                accept: {
+                  'audio/*': ['.mp3', '.wav', '.ogg'],
+                  'video/*': ['.mp4', '.webm', '.ogg'],
+                },
               },
-            },
-          ],
-          multiple: false,
-        });
-        const file = await handle.getFile();
-        await loadFile(file);
-      } else {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'audio/*,video/*';
-        input.style.display = 'none';
-        document.body.append(input);
-        input.addEventListener('change', () => {
-          const file = input.files[0];
-          loadFile(file);
-          input.remove();
-        });
-        input.click();
-      }
+            ],
+          })
+        : pickOpen({
+            types: [
+              {
+                description: 'Media',
+                accept: {
+                  'audio/*': ['.mp3', '.wav', '.ogg'],
+                  'video/*': ['.mp4', '.webm', '.ogg'],
+                },
+              },
+            ],
+          }));
+      const entry = Array.isArray(selection) ? selection[0] : selection;
+      if (!entry) return;
+      await loadFile(entry.file);
     } catch (err) {
       console.error(err);
     }

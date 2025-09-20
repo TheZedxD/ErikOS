@@ -953,32 +953,17 @@ body {
 }
 
 /* Notepad specific styles */
-.notepad-toolbar {
+.notepad {
   display: flex;
-  gap: 6px;
-  margin-bottom: 4px;
+  height: 100%;
 }
 
-.notepad-toolbar button {
-  padding: 2px 6px;
-  font-size: 12px;
-  cursor: pointer;
+.notepad-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
-/* Notepad editor area – CodeMirror will override height */
-/* The Notepad editor area sits below a fixed toolbar.  Adjust the heights
-   here if you change the toolbar’s height in the HTML. */
-.notepad-editor {
-  width: 100%;
-  height: calc(100% - 32px);
-}
-
-/* Ensure CodeMirror fills the notepad window */
-.CodeMirror {
-  height: calc(100% - 32px);
-}
-
-/* Notepad menu bar */
 .notepad-menu {
   display: flex;
   align-items: center;
@@ -987,16 +972,40 @@ body {
   background: var(--taskbar-bg);
   border-bottom: 2px solid var(--taskbar-border-dark);
 }
+
 .notepad-menu button {
   font-size: 12px;
   padding: 2px 6px;
   cursor: pointer;
 }
+
 .notepad-menu button.active {
   background: var(--selection-bg);
   color: var(--window-bg);
   border-color: #000000 #ffffff #ffffff #000000;
   padding: 3px 5px 1px 7px;
+}
+
+.notepad-editor-host {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.notepad-textarea {
+  flex: 1;
+}
+
+.CodeMirror {
+  flex: 1;
+  height: 100%;
+}
+
+.notepad-status {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-top: 1px solid var(--window-border-dark);
+  background: var(--taskbar-bg);
 }
 
 /* Terminal styles */
@@ -1063,12 +1072,37 @@ body {
   cursor: pointer;
 }
 
+.file-manager-toolbar input[type='text'] {
+  padding: 2px 6px;
+  font-size: 12px;
+  min-width: 120px;
+}
+
 /* New two-pane file manager */
 .file-manager-body {
   flex: 1;
   display: flex;
   overflow: hidden;
   border-top: 1px solid var(--window-border-dark);
+}
+
+.file-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px;
+  font-size: 12px;
+}
+
+.file-breadcrumbs button {
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.breadcrumb-separator {
+  opacity: 0.6;
 }
 
 .file-tree {
@@ -1082,6 +1116,23 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 4px;
+}
+
+.file-view-toggle {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.file-view-toggle button {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.file-view-toggle button.active {
+  background: var(--selection-bg);
+  color: #ffffff;
+  border-color: #000000 #ffffff #ffffff #000000;
 }
 
 /* Legacy content container for other panels */
@@ -1151,6 +1202,44 @@ body {
 .file-item.selected {
   background: var(--selection-bg);
   color: #ffffff;
+}
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.file-card {
+  border: 1px solid transparent;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.file-card:hover {
+  background: var(--selection-bg);
+  color: #ffffff;
+}
+
+.file-card.selected {
+  background: var(--selection-bg);
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.file-card-icon {
+  font-size: 24px;
+}
+
+.file-card-label {
+  font-size: 12px;
+  word-break: break-word;
 }
 
 .tree-node {
