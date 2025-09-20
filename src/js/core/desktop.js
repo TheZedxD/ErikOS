@@ -1,11 +1,7 @@
-import { ASSET_BASE } from "../../config.js";
+import { applyIcon } from "../utils/iconLoader.js";
 
 const GRID_SIZE = 88;
 const snap = (v) => Math.round(v / GRID_SIZE) * GRID_SIZE;
-const resolveIcon = (icon) =>
-  icon.startsWith("http") || icon.startsWith("/")
-    ? icon
-    : `${ASSET_BASE}/${icon}`;
 
 let menuEl = null;
 let keyBound = false;
@@ -131,7 +127,7 @@ export function renderDesktopIcons(apps, launcher, profileId = "default") {
     el.dataset.appId = a.id;
     el.innerHTML = `<img alt=""><span class=\"label\"></span>`;
     const img = el.querySelector("img");
-    img.src = resolveIcon(a.icon);
+    applyIcon(img, a.icon);
     el.querySelector(".label").textContent = names[a.id] || a.title;
     let moved = false;
     el.addEventListener("click", (e) => {

@@ -1,4 +1,6 @@
 
+import { registerAudio } from '../utils/audioBus.js';
+
 export const meta = { id: 'recorder', name: 'Recorder', icon: '/icons/recorder.png' };
 
 export function launch(ctx) {
@@ -115,7 +117,11 @@ export function mount(winEl, ctx) {
       audioEl = document.createElement('audio');
       audioEl.controls = true;
       audioEl.src = blobUrl;
-      cleanupAudio = ctx.globals.addAudioElement?.(audioEl) || null;
+      const registrar =
+        ctx.globals.registerAudio ||
+        ctx.globals.addAudioElement ||
+        registerAudio;
+      cleanupAudio = registrar(audioEl) || null;
       preview.innerHTML = '';
       preview.append(audioEl);
       playBtn.disabled = false;

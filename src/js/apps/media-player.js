@@ -1,5 +1,6 @@
 
 import { pickOpen } from '../utils/file-dialogs.js';
+import { registerAudio } from '../utils/audioBus.js';
 
 export const meta = { id: 'media-player', name: 'Media Player', icon: '/icons/media-player.png' };
 
@@ -30,6 +31,9 @@ export function mount(winEl, ctx, initial = null) {
   toolbar.classList.add('media-player-toolbar');
   const openBtn = document.createElement('button');
   openBtn.textContent = 'Open Media';
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Media controls');
+  openBtn.setAttribute('aria-label', 'Open media file');
   toolbar.append(openBtn);
 
   const stage = document.createElement('div');
@@ -163,7 +167,11 @@ export function mount(winEl, ctx, initial = null) {
     stage.append(mediaEl);
     currentEl = mediaEl;
     currentSource = normalized;
-    cleanupAudio = ctx.globals.addAudioElement?.(mediaEl) || null;
+    const registrar =
+      ctx.globals.registerAudio ||
+      ctx.globals.addAudioElement ||
+      registerAudio;
+    cleanupAudio = registrar(mediaEl) || null;
     status.textContent = normalized.name || normalized.path || 'Playing media';
     wireMedia(mediaEl);
     try {

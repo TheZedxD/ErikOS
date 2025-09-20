@@ -122,12 +122,15 @@ export function mount(winEl, ctx) {
 
     const toolbar = document.createElement('div');
     toolbar.classList.add('chat-toolbar');
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', 'Chat controls');
     const modelLabel = document.createElement('span');
     modelLabel.textContent = 'Model: ';
     const modelSelect = document.createElement('select');
     modelSelect.disabled = true;
     const settingsBtn = document.createElement('button');
     settingsBtn.textContent = 'Settings';
+    settingsBtn.setAttribute('aria-label', 'Open chat settings');
     settingsBtn.addEventListener('click', openChatSettings);
     toolbar.append(modelLabel, modelSelect, settingsBtn);
 

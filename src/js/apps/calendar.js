@@ -11,6 +11,7 @@ export function mount(winEl, ctx) {
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.height = '100%';
+  container.setAttribute('role', 'application');
 
   const header = document.createElement('div');
   header.style.display = 'flex';
@@ -18,32 +19,50 @@ export function mount(winEl, ctx) {
   header.style.alignItems = 'center';
   const prevBtn = document.createElement('button');
   prevBtn.textContent = '<';
+  prevBtn.setAttribute('aria-label', 'Previous month');
   const nextBtn = document.createElement('button');
   nextBtn.textContent = '>';
+  nextBtn.setAttribute('aria-label', 'Next month');
   const title = document.createElement('span');
+  title.setAttribute('aria-live', 'polite');
   header.append(prevBtn, title, nextBtn);
 
   const table = document.createElement('table');
   table.style.width = '100%';
   table.style.borderCollapse = 'collapse';
+  table.setAttribute('role', 'grid');
 
   container.append(header, table);
 
   let currentDate = new Date();
 
+  const locale = navigator.language || undefined;
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
+  const weekdayFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+
+  function getWeekdayNames() {
+    const base = new Date(Date.UTC(2021, 7, 1)); // Sunday
+    const names = [];
+    for (let i = 0; i < 7; i += 1) {
+      const date = new Date(base);
+      date.setUTCDate(base.getUTCDate() + i);
+      names.push(weekdayFormatter.format(date));
+    }
+    return names;
+  }
+
+  const weekdayNames = getWeekdayNames();
+
   function render() {
-    const monthNames = [
-      'January','February','March','April','May','June','July',
-      'August','September','October','November','December'
-    ];
-    title.textContent = monthNames[currentDate.getMonth()] + ' ' + currentDate.getFullYear();
+    title.textContent = monthFormatter.format(currentDate);
     table.innerHTML = '';
     const headerRow = document.createElement('tr');
-    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    weekdayNames.forEach((d) => {
       const th = document.createElement('th');
       th.textContent = d;
       th.style.border = '1px solid var(--window-border-dark)';
       th.style.padding = '2px';
+      th.scope = 'col';
       headerRow.append(th);
     });
     table.append(headerRow);
@@ -57,6 +76,7 @@ export function mount(winEl, ctx) {
       td.textContent = '';
       td.style.border = '1px solid var(--window-border-dark)';
       td.style.height = '24px';
+      td.setAttribute('aria-hidden', 'true');
       row.append(td);
     }
     for (let day=1; day<=daysInMonth; day++) {
@@ -72,6 +92,7 @@ export function mount(winEl, ctx) {
       if (day===today.getDate() && currentDate.getMonth()===today.getMonth() && currentDate.getFullYear()===today.getFullYear()) {
         td.style.background = 'var(--selection-bg)';
         td.style.color = '#fff';
+        td.setAttribute('aria-label', `Today ${weekdayNames[(firstDay + day - 1) % 7]} ${day}`);
       }
       row.append(td);
     }
@@ -80,6 +101,7 @@ export function mount(winEl, ctx) {
       td.textContent = '';
       td.style.border = '1px solid var(--window-border-dark)';
       td.style.height = '24px';
+      td.setAttribute('aria-hidden', 'true');
       row.append(td);
     }
     table.append(row);

@@ -12,8 +12,11 @@ export function mount(winEl, ctx) {
 
   const toolbar = document.createElement('div');
   toolbar.classList.add('file-manager-toolbar');
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'World clock tools');
   const addBtn = document.createElement('button');
   addBtn.textContent = 'Add Clock';
+  addBtn.setAttribute('aria-label', 'Add a world clock');
   toolbar.append(addBtn);
 
   const content = document.createElement('div');
@@ -56,6 +59,7 @@ export function mount(winEl, ctx) {
         timeEl.style.marginLeft = 'auto';
         const removeBtn = document.createElement('button');
         removeBtn.textContent = 'Remove';
+        removeBtn.setAttribute('aria-label', `Remove clock ${tz.label}`);
         removeBtn.addEventListener('click', () => {
           clearInterval(interval);
           clocks.splice(idx, 1);
@@ -64,14 +68,29 @@ export function mount(winEl, ctx) {
         });
         row.append(label, timeEl, removeBtn);
         content.append(row);
-        function update() {
+        const formatter = (() => {
           try {
-            const opt = { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone: tz.zone };
-            timeEl.textContent = new Intl.DateTimeFormat([], opt).format(new Date());
+            return new Intl.DateTimeFormat(navigator.language || undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              timeZone: tz.zone,
+            });
           } catch {
-            timeEl.textContent = 'Invalid';
+            return null;
           }
-        }
+        })();
+        const update = () => {
+          if (!formatter) {
+            timeEl.textContent = 'Invalid time zone';
+            return;
+          }
+          try {
+            timeEl.textContent = formatter.format(new Date());
+          } catch {
+            timeEl.textContent = 'Invalid time zone';
+          }
+        };
         update();
         const interval = setInterval(update, 1000);
         intervals.push(interval);
@@ -83,12 +102,23 @@ export function mount(winEl, ctx) {
     const zone = prompt('Enter IANA time zone (e.g. America/New_York)');
     if (!zone) return;
     const label = prompt('Enter label for this clock');
+    try {
+      new Intl.DateTimeFormat(undefined, { timeZone: zone });
+    } catch {
+      alert('Invalid time zone');
+      return;
+    }
     clocks.push({ zone, label: label || zone });
     saveClocks();
     render();
   });
 
   render();
-  const closeBtn = winEl.querySelector('.controls button:last-child');
-  if (closeBtn) closeBtn.addEventListener('click', () => intervals.forEach(clearInterval));
+  winEl.addEventListener(
+    'window-closed',
+    () => {
+      intervals.forEach(clearInterval);
+    },
+    { once: true },
+  );
 }

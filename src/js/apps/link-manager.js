@@ -23,10 +23,14 @@ export function mount(winEl, ctx) {
   container.classList.add('file-manager');
   const toolbar = document.createElement('div');
   toolbar.classList.add('file-manager-toolbar');
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Link manager actions');
   const addFolderBtn = document.createElement('button');
   addFolderBtn.textContent = 'Add Folder';
+  addFolderBtn.setAttribute('aria-label', 'Add folder');
   const addLinkBtn = document.createElement('button');
   addLinkBtn.textContent = 'Add Link';
+  addLinkBtn.setAttribute('aria-label', 'Add link');
   toolbar.append(addFolderBtn, addLinkBtn);
   const content = document.createElement('div');
   content.classList.add('file-manager-content');

@@ -23,8 +23,11 @@ export function mount(winEl, ctx, initialImages = []) {
 
   const toolbar = document.createElement('div');
   toolbar.classList.add('gallery-toolbar');
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Gallery tools');
   const addBtn = document.createElement('button');
   addBtn.textContent = 'Add Images';
+  addBtn.setAttribute('aria-label', 'Add images to the gallery');
   toolbar.append(addBtn);
 
   const grid = document.createElement('div');

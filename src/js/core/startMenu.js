@@ -1,4 +1,4 @@
-import { ASSET_BASE } from "../../config.js";
+import { applyIcon } from "../utils/iconLoader.js";
 
 export function filterApps(apps, query = "") {
   const q = query.toLowerCase();
@@ -32,9 +32,8 @@ function renderRecent(apps, launcher) {
     if (!app) continue;
     const li = document.createElement("li");
     li.innerHTML = `<img alt=""><span></span>`;
-    li.querySelector("img").src = app.icon.startsWith("http")
-      ? app.icon
-      : `${ASSET_BASE}/${app.icon.replace(/^\//, "")}`;
+    const img = li.querySelector("img");
+    applyIcon(img, app.icon);
     li.querySelector("span").textContent = app.title;
     li.tabIndex = 0;
     li.addEventListener("click", () => launcher.launch(app.id));
@@ -49,9 +48,8 @@ export function buildStartMenu(apps, launcher, query = "") {
   for (const a of filterApps(apps, query)) {
     const li = document.createElement("li");
     li.innerHTML = `<img alt=""><span></span>`;
-    li.querySelector("img").src = a.icon.startsWith("http")
-      ? a.icon
-      : `${ASSET_BASE}/${a.icon.replace(/^\//, "")}`;
+    const img = li.querySelector("img");
+    applyIcon(img, a.icon);
     li.querySelector("span").textContent = a.title;
     if (!a.comingSoon) {
       li.tabIndex = 0;

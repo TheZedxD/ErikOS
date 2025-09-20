@@ -78,8 +78,68 @@ export function mount(winEl, ctx) {
       }
 
       container.append(errorSection);
+
+      const a11ySection = document.createElement('section');
+      a11ySection.style.marginTop = '16px';
+      const a11yHeading = document.createElement('h3');
+      a11yHeading.textContent = 'Accessibility check';
+      a11yHeading.style.marginBottom = '8px';
+      a11ySection.append(a11yHeading);
+
+      const a11yIssues = collectAccessibilityIssues();
+      if (a11yIssues.length === 0) {
+        const okMsg = document.createElement('p');
+        okMsg.textContent = 'No unlabeled buttons detected in the current UI.';
+        a11ySection.append(okMsg);
+      } else {
+        const list = document.createElement('ul');
+        a11yIssues.forEach((issue) => {
+          const li = document.createElement('li');
+          li.textContent = issue;
+          list.append(li);
+        });
+        a11ySection.append(list);
+      }
+
+      container.append(a11ySection);
     })
     .catch(err => {
       container.textContent = 'Diagnostics failed: ' + err;
     });
+}
+
+function collectAccessibilityIssues(root = document) {
+  const issues = [];
+  const buttons = Array.from(root.querySelectorAll('button'));
+  buttons.forEach((btn) => {
+    if (btn.disabled) return;
+    if (btn.closest('[aria-hidden="true"], [hidden]')) return;
+    if (btn.offsetParent === null && !btn.matches('[role="menuitem"]')) return;
+    if (hasAccessibleName(btn)) return;
+    const descriptor = btn.id
+      ? `#${btn.id}`
+      : btn.textContent?.trim()
+      ? `with text "${btn.textContent.trim()}"`
+      : btn.className
+      ? `.${btn.className.split(/\s+/).filter(Boolean).join('.')}`
+      : 'unidentified';
+    issues.push(`Button ${descriptor} is missing an accessible name.`);
+  });
+  return issues;
+}
+
+function hasAccessibleName(btn) {
+  const ariaLabel = btn.getAttribute('aria-label');
+  if (ariaLabel && ariaLabel.trim()) return true;
+  const labelledBy = btn.getAttribute('aria-labelledby');
+  if (labelledBy) {
+    for (const id of labelledBy.split(/\s+/)) {
+      const el = id ? document.getElementById(id) : null;
+      if (el && el.textContent && el.textContent.trim()) return true;
+    }
+  }
+  if (btn.title && btn.title.trim()) return true;
+  const text = btn.textContent?.trim();
+  if (text) return true;
+  return false;
 }

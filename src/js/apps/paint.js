@@ -17,38 +17,60 @@ export function mount(winEl, ctx) {
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.height = '100%';
+  container.style.gap = '6px';
 
   const toolbar = document.createElement('div');
   toolbar.style.display = 'flex';
   toolbar.style.gap = '4px';
+  toolbar.style.alignItems = 'center';
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Paint tools');
 
   const brushBtn = document.createElement('button');
   brushBtn.textContent = 'Brush';
   brushBtn.title = 'Brush tool';
+  brushBtn.setAttribute('aria-label', 'Brush tool');
+  brushBtn.type = 'button';
   const eraserBtn = document.createElement('button');
   eraserBtn.textContent = 'Eraser';
   eraserBtn.title = 'Eraser tool';
+  eraserBtn.setAttribute('aria-label', 'Eraser tool');
+  eraserBtn.type = 'button';
   const colorInput = document.createElement('input');
   colorInput.type = 'color';
   colorInput.value = '#000000';
+  colorInput.setAttribute('aria-label', 'Stroke colour');
   const sizeInput = document.createElement('input');
   sizeInput.type = 'range';
   sizeInput.min = '1';
   sizeInput.max = '30';
   sizeInput.value = '4';
   sizeInput.title = 'Brush size';
+  sizeInput.setAttribute('aria-label', 'Brush size');
   const insertImgBtn = document.createElement('button');
   insertImgBtn.textContent = 'Insert Image';
   insertImgBtn.title = 'Insert an image onto the canvas';
+  insertImgBtn.setAttribute('aria-label', 'Insert image');
+  insertImgBtn.type = 'button';
   const clearBtn = document.createElement('button');
   clearBtn.textContent = 'Clear';
+  clearBtn.setAttribute('aria-label', 'Clear canvas');
+  clearBtn.type = 'button';
   const saveBtn = document.createElement('button');
   saveBtn.textContent = 'Save';
+  saveBtn.setAttribute('aria-label', 'Save image');
+  saveBtn.type = 'button';
+  const sizeLabel = document.createElement('label');
+  sizeLabel.textContent = 'Size';
+  sizeLabel.style.display = 'flex';
+  sizeLabel.style.alignItems = 'center';
+  sizeLabel.style.gap = '4px';
+  sizeLabel.append(sizeInput);
   toolbar.append(
     brushBtn,
     eraserBtn,
     colorInput,
-    sizeInput,
+    sizeLabel,
     insertImgBtn,
     clearBtn,
     saveBtn
@@ -59,14 +81,26 @@ export function mount(winEl, ctx) {
   canvas.height = 400;
   canvas.style.border = '1px solid var(--window-border-dark)';
   canvas.style.cursor = 'crosshair';
+  canvas.setAttribute('aria-label', 'Drawing canvas');
   container.append(toolbar, canvas);
 
   const ctx2d = canvas.getContext('2d');
+  ctx2d.fillStyle = '#ffffff';
+  ctx2d.fillRect(0, 0, canvas.width, canvas.height);
 
   function resizeCanvas() {
     const rect = container.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height - toolbar.offsetHeight;
+    const newWidth = Math.max(320, Math.floor(rect.width));
+    const newHeight = Math.max(200, Math.floor(rect.height - toolbar.offsetHeight));
+    if (newWidth === canvas.width && newHeight === canvas.height) return;
+    const snapshot = document.createElement('canvas');
+    snapshot.width = canvas.width;
+    snapshot.height = canvas.height;
+    const snapCtx = snapshot.getContext('2d');
+    snapCtx.drawImage(canvas, 0, 0);
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    ctx2d.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, canvas.width, canvas.height);
   }
   resizeCanvas();
   outer?.addEventListener('resized', () => setTimeout(resizeCanvas, 0));
@@ -74,8 +108,11 @@ export function mount(winEl, ctx) {
   ctx2d.lineCap = 'round';
   let mode = 'brush';
   function updateToolButtons() {
-    brushBtn.style.fontWeight = mode === 'brush' ? 'bold' : 'normal';
-    eraserBtn.style.fontWeight = mode === 'erase' ? 'bold' : 'normal';
+    const isBrush = mode === 'brush';
+    brushBtn.setAttribute('aria-pressed', String(isBrush));
+    eraserBtn.setAttribute('aria-pressed', String(!isBrush));
+    brushBtn.classList.toggle('active', isBrush);
+    eraserBtn.classList.toggle('active', !isBrush);
   }
   updateToolButtons();
 
@@ -144,13 +181,36 @@ export function mount(winEl, ctx) {
   canvas.addEventListener('pointerleave', stopDrawing);
 
   clearBtn.addEventListener('click', () => {
-    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+    ctx2d.save();
+    ctx2d.setTransform(1, 0, 0, 1, 0, 0);
+    ctx2d.fillStyle = '#ffffff';
+    ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+    ctx2d.restore();
   });
 
   saveBtn.addEventListener('click', () => {
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = 'painting.png';
-    link.click();
+    const filename = `painting-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+    if (canvas.toBlob) {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return;
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          document.body.append(link);
+          link.click();
+          requestAnimationFrame(() => {
+            URL.revokeObjectURL(link.href);
+            link.remove();
+          });
+        },
+        'image/png',
+      );
+    } else {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = filename;
+      link.click();
+    }
   });
 }

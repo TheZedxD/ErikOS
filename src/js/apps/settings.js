@@ -308,15 +308,31 @@ export async function mount(winEl, ctx) {
   const audioPanel = makePanel('Audio');
   const audioHeading = document.createElement('h3');
   audioHeading.textContent = 'Volume';
+  const volWrapper = document.createElement('label');
+  volWrapper.textContent = 'System volume';
+  volWrapper.style.display = 'flex';
+  volWrapper.style.flexDirection = 'column';
+  volWrapper.style.gap = '4px';
   const volSlider = document.createElement('input');
   volSlider.type = 'range';
   volSlider.min = '0';
   volSlider.max = '1';
   volSlider.step = '0.01';
   volSlider.value = String(g.globalVolume);
-  audioPanel.append(audioHeading, volSlider);
+  volSlider.setAttribute('aria-valuemin', '0');
+  volSlider.setAttribute('aria-valuemax', '1');
+  volSlider.setAttribute('aria-label', 'System volume');
+  volWrapper.append(volSlider);
+  audioPanel.append(audioHeading, volWrapper);
   volSlider.addEventListener('input', () => {
-    g.setGlobalVolume?.(parseFloat(volSlider.value));
+    const value = parseFloat(volSlider.value);
+    g.setGlobalVolume?.(value);
+  });
+  const detach = g.onGlobalVolumeChange?.((value) => {
+    const current = Number.parseFloat(volSlider.value);
+    if (!Number.isFinite(current) || Math.abs(current - value) > 0.001) {
+      volSlider.value = String(value);
+    }
   });
 
   const advancedPanel = makePanel('Advanced');
@@ -414,6 +430,16 @@ export async function mount(winEl, ctx) {
       ? 'inline'
       : 'none';
   });
+
+  if (typeof detach === 'function') {
+    winEl.addEventListener(
+      'window-closed',
+      () => {
+        detach();
+      },
+      { once: true },
+    );
+  }
 
   container.append(tabs, contentArea);
 }
