@@ -22,13 +22,28 @@ export class WindowManager {
 
     const header = document.createElement("div");
     header.className = "window-header";
-    header.innerHTML = `
-      <span class="title">${title}</span>
-      <div class="window-controls">
-        <button data-act="min" aria-label="Minimize">_</button>
-        <button data-act="max" aria-label="Maximize">▢</button>
-        <button data-act="close" aria-label="Close">×</button>
-      </div>`;
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "title";
+    titleEl.textContent = title;
+
+    const controls = document.createElement("div");
+    controls.className = "window-controls";
+
+    const createBtn = (act, label, aria) => {
+      const btn = document.createElement("button");
+      btn.dataset.act = act;
+      btn.setAttribute("aria-label", aria);
+      btn.textContent = label;
+      return btn;
+    };
+
+    const minBtn = createBtn("min", "_", "Minimize");
+    const maxBtn = createBtn("max", "▢", "Maximize");
+    const closeBtn = createBtn("close", "×", "Close");
+    controls.append(minBtn, maxBtn, closeBtn);
+
+    header.append(titleEl, controls);
     const body = document.createElement("div");
     body.className = "window-body";
     const contentWrapper = document.createElement("div");
@@ -56,6 +71,10 @@ export class WindowManager {
       body: contentWrapper,
       header,
       resizers,
+      dragHandle: titleEl,
+      minBtn,
+      maxBtn,
+      closeBtn,
       taskBtn: null,
       minimized: false,
       maximized: false,
@@ -84,24 +103,18 @@ export class WindowManager {
       e.stopPropagation();
       this.toggleMaximize(id);
     });
-    header
-      .querySelector('[data-act="min"]')
-      ?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.minimizeWindow(id);
-      });
-    header
-      .querySelector('[data-act="max"]')
-      ?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.toggleMaximize(id);
-      });
-    header
-      .querySelector('[data-act="close"]')
-      ?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.closeWindow(id);
-      });
+    minBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.minimizeWindow(id);
+    });
+    maxBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.toggleMaximize(id);
+    });
+    closeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.closeWindow(id);
+    });
 
     info.taskBtn = this._createTaskbarButton(id, title);
 
@@ -202,6 +215,9 @@ export class WindowManager {
       info.maximized = false;
       this._ensureInViewport(info);
     }
+    if (!info.maximized) {
+      this._saveBounds(info);
+    }
     this.focusWindow(id);
   }
 
@@ -278,8 +294,9 @@ export class WindowManager {
 
   _makeDraggable(info) {
     const win = info.element;
-    const header = info.header;
-    header.addEventListener("mousedown", (e) => {
+    const handle = info.dragHandle || info.header;
+    if (!handle) return;
+    handle.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
       const startX = e.clientX;
@@ -309,7 +326,7 @@ export class WindowManager {
       const up = () => {
         window.removeEventListener("mousemove", move);
         window.removeEventListener("mouseup", up);
-        this._saveBounds(info);
+        if (!info.maximized) this._saveBounds(info);
       };
       window.addEventListener("mousemove", move);
       window.addEventListener("mouseup", up);
@@ -322,6 +339,7 @@ export class WindowManager {
       res.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
         e.preventDefault();
+        if (info.maximized) return;
         const dir = res.dataset.dir;
         const startX = e.clientX;
         const startY = e.clientY;
