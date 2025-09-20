@@ -1,5 +1,10 @@
 
-export const meta = { id: 'notepad', name: 'Notepad', icon: '/icons/notepad.png' };
+export const meta = {
+  id: "notepad",
+  name: "Notepad",
+  icon: "/icons/notepad.png",
+  comingSoon: false,
+};
 
 export function launch(ctx, initialText = "") {
   const content = document.createElement('div');
@@ -57,6 +62,8 @@ export function mount(winEl, ctx, initialText = "") {
   let currentFileHandle = null;
   let wrapEnabled = true;
 
+  wrapBtn.classList.toggle("active", wrapEnabled);
+
   function downloadFile(filename, text) {
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -80,6 +87,7 @@ export function mount(winEl, ctx, initialText = "") {
     editor.setValue("");
     currentFileHandle = null;
     localStorage.removeItem(STORAGE_KEY);
+    editor.focus();
   });
 
   openBtn.addEventListener("click", async () => {
@@ -101,6 +109,7 @@ export function mount(winEl, ctx, initialText = "") {
         editor.setValue(content);
         currentFileHandle = fileHandle;
         localStorage.setItem(STORAGE_KEY, content);
+        editor.focus();
       } else {
         const input = document.createElement("input");
         input.type = "file";
@@ -113,6 +122,7 @@ export function mount(winEl, ctx, initialText = "") {
           file.text().then((text) => {
             editor.setValue(text);
             localStorage.setItem(STORAGE_KEY, text);
+            editor.focus();
           });
           currentFileHandle = null;
           input.remove();
@@ -129,6 +139,7 @@ export function mount(winEl, ctx, initialText = "") {
     const writable = await handle.createWritable();
     await writable.write(text);
     await writable.close();
+    localStorage.setItem(STORAGE_KEY, text);
     alert("File saved successfully.");
   }
 
