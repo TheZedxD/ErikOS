@@ -1,10 +1,10 @@
 
 export const meta = { id: 'sheets', name: 'Sheets', icon: '/icons/sheets.png' };
-export function launch(ctx) {
+export function launch(ctx, fileData) {
   const content = document.createElement('div');
   const id = ctx.windowManager.createWindow(meta.id, meta.name, content);
   const win = ctx.windowManager.windows.get(id).element;
-  mount(win, ctx);
+  mount(win, ctx, fileData);
 }
 export function mount(winEl, ctx, fileData) {
   const windowManager = ctx.windowManager;

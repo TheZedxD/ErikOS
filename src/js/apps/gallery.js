@@ -1,12 +1,12 @@
 
 export const meta = { id: 'gallery', name: 'Gallery', icon: '/icons/gallery.png' };
-export function launch(ctx) {
+export function launch(ctx, initialImages = []) {
   const content = document.createElement('div');
   const id = ctx.windowManager.createWindow(meta.id, meta.name, content);
   const win = ctx.windowManager.windows.get(id).element;
-  mount(win, ctx);
+  mount(win, ctx, initialImages);
 }
-export function mount(winEl, ctx) {
+export function mount(winEl, ctx, initialImages = []) {
   ctx.globals.addLog?.('Gallery opened');
   const container = winEl.classList.contains('window')
     ? winEl.querySelector('.content')
@@ -51,6 +51,16 @@ export function mount(winEl, ctx) {
     content.append(thumb);
   }
 
+  function addImageFromSource(src) {
+    if (!src) return;
+    renderThumbnail(src);
+  }
+
+  initialImages.forEach((img) => {
+    if (typeof img === 'string') addImageFromSource(img);
+    else if (img && typeof img.src === 'string') addImageFromSource(img.src);
+  });
+
   addBtn.addEventListener('click', async () => {
     if (window.showOpenFilePicker) {
       try {
@@ -66,7 +76,7 @@ export function mount(winEl, ctx) {
         for (const handle of handles) {
           const file = await handle.getFile();
           const url = URL.createObjectURL(file);
-          renderThumbnail(url);
+          addImageFromSource(url);
         }
       } catch (err) {
         console.error(err);
@@ -81,7 +91,7 @@ export function mount(winEl, ctx) {
       input.addEventListener('change', () => {
         Array.from(input.files).forEach((file) => {
           const url = URL.createObjectURL(file);
-          renderThumbnail(url);
+          addImageFromSource(url);
         });
         input.remove();
       });
