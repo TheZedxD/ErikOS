@@ -32,6 +32,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import threading
 from io import StringIO
+from collections import deque
 
 from flask import Flask, jsonify, request, send_from_directory, g
 from werkzeug.utils import secure_filename
@@ -47,6 +48,44 @@ STATIC_DIR = BASE_DIR
 LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOGS_DIR / f"server-{datetime.now():%Y%m%d}.log"
+CLIENT_ERROR_LOG_FILE = LOGS_DIR / "client-errors.log"
+CLIENT_ERROR_HISTORY: deque[dict[str, object]] = deque(maxlen=500)
+_client_error_lock = threading.Lock()
+
+
+def _load_existing_client_errors() -> None:
+    if not CLIENT_ERROR_LOG_FILE.exists():
+        return
+    try:
+        lines = CLIENT_ERROR_LOG_FILE.read_text(encoding="utf-8").splitlines()
+    except Exception:  # pragma: no cover - best effort log load
+        logger.exception("Failed reading client error log")
+        return
+
+    for record in lines[-500:]:
+        try:
+            data = json.loads(record)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            CLIENT_ERROR_HISTORY.append(data)
+
+
+def _record_client_error(entry: dict[str, object]) -> None:
+    with _client_error_lock:
+        CLIENT_ERROR_HISTORY.append(entry)
+        try:
+            with CLIENT_ERROR_LOG_FILE.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry) + "\n")
+        except Exception:  # pragma: no cover - disk issues
+            logger.exception("Failed writing client error log")
+
+
+def get_client_errors(limit: int = 50) -> list[dict[str, object]]:
+    if limit <= 0:
+        return []
+    tail = list(CLIENT_ERROR_HISTORY)[-limit:]
+    return [dict(item) for item in tail]
 
 
 class JsonFormatter(logging.Formatter):
@@ -68,6 +107,8 @@ handler.setFormatter(JsonFormatter())
 logger = logging.getLogger("server")
 logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
 logger.addHandler(handler)
+
+_load_existing_client_errors()
 
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
@@ -153,10 +194,16 @@ def _load_state() -> dict[int, str]:
 
 
 # Whitelist of allowed shell commands for execute_command.
-ALLOWED_COMMANDS = set(settings.terminal_whitelist)
+ALLOWED_COMMANDS = {cmd.lower() for cmd in settings.terminal_whitelist}
+MAX_COMMAND_LENGTH = 2000
+TERMINAL_TIMEOUT = max(1, settings.terminal_timeout_seconds)
 
 # Registry for asynchronous command execution
 command_jobs: dict[str, dict[str, object]] = {}
+
+
+def _is_windows() -> bool:
+    return os.name == "nt"
 
 
 def load_chat_history(profile: str) -> list[dict]:
@@ -707,20 +754,22 @@ def execute_command():
     """
     data = request.get_json(silent=True) or {}
     cmd_line = data.get("command")
-    if not cmd_line:
+    if not isinstance(cmd_line, str) or not cmd_line.strip():
         return json_error("command is required")
+    cmd_line = cmd_line.strip()
+    if len(cmd_line) > MAX_COMMAND_LENGTH:
+        return json_error("Command too long")
+    if any(sym in cmd_line for sym in ("&&", "||", "|", ";")):
+        return json_error("Command contains unsupported operators")
+
     try:
-        tokens = shlex.split(cmd_line)
+        tokens = shlex.split(cmd_line, posix=not _is_windows())
     except ValueError as exc:
         return json_error(str(exc))
     if not tokens:
         return json_error("Empty command")
 
-    forbidden_symbols = {"&", "&&", "|", "||", ";", ">", "<"}
-    if any(tok in forbidden_symbols for tok in tokens[1:]):
-        return json_error("Command contains unsupported operators")
-
-    if tokens[0] not in ALLOWED_COMMANDS:
+    if tokens[0].lower() not in ALLOWED_COMMANDS:
         return json_error("Command not permitted")
 
     job_id = uuid.uuid4().hex
@@ -728,19 +777,12 @@ def execute_command():
 
     def _run():
         try:
-            popen_args: list[str] | str
-            use_shell = False
-
-            if os.name == "nt":
-                builtin_commands = {"dir", "echo", "type", "cls"}
-                if tokens[0].lower() in builtin_commands:
-                    command_line = subprocess.list2cmdline(tokens)
-                    popen_args = f"cmd /c {command_line}"
-                    use_shell = True
-                else:
-                    popen_args = tokens
+            if _is_windows():
+                popen_args = ["cmd", "/c", cmd_line]
+                use_shell = True
             else:
                 popen_args = tokens
+                use_shell = False
 
             proc = subprocess.Popen(
                 popen_args,
@@ -749,11 +791,24 @@ def execute_command():
                 text=True,
                 shell=use_shell,
             )
-            out, err = proc.communicate()
-            buffer.write((out or "") + (err or ""))
-            command_jobs[job_id]["returncode"] = proc.returncode
+            try:
+                out, err = proc.communicate(timeout=TERMINAL_TIMEOUT)
+                buffer.write((out or "") + (err or ""))
+                command_jobs[job_id]["returncode"] = proc.returncode
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                out, err = proc.communicate()
+                buffer.write(
+                    ((out or "") + (err or ""))
+                    + f"\nCommand timed out after {TERMINAL_TIMEOUT} seconds"
+                )
+                command_jobs[job_id]["returncode"] = -1
+            except Exception as exc:  # pragma: no cover - best effort
+                buffer.write(str(exc))
+                command_jobs[job_id]["returncode"] = -1
         except Exception as exc:  # pragma: no cover - propagate to job
             buffer.write(str(exc))
+            command_jobs[job_id]["returncode"] = -1
         finally:
             command_jobs[job_id]["status"] = "finished"
             command_jobs[job_id]["output"] = buffer.getvalue().strip()
@@ -778,12 +833,42 @@ def command_status(job_id: str):
     return jsonify({"status": "running"})
 
 
+@app.route("/api/log-client-error", methods=["POST"])
+def log_client_error():
+    data = request.get_json(silent=True) or {}
+    message = str(data.get("message") or "")
+    stack = str(data.get("stack") or "")
+    app_id = str(data.get("app") or "unknown")
+    timestamp = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    entry = {
+        "timestamp": timestamp,
+        "app": app_id,
+        "message": message[:1024],
+        "stack": stack[:6000],
+    }
+    _record_client_error(entry)
+    try:
+        logger.error(
+            "client-error %s",
+            json.dumps(entry, ensure_ascii=False),
+            extra={
+                "request_id": getattr(g, "request_id", "-"),
+                "path": f"app:{app_id}",
+                "status": 0,
+                "duration": 0,
+            },
+        )
+    except Exception:  # pragma: no cover - logging best effort
+        logger.exception("Failed logging client error")
+    return jsonify({"ok": True})
+
+
 @app.route("/api/diagnostics/run")
 def run_diagnostics_endpoint():
     """Run diagnostics and return a summary result."""
     result = run_diagnostics(app)
-    status = 200 if result.get("ok") else 500
-    return jsonify(result), status
+    result["errors"] = get_client_errors(50)
+    return jsonify(result), 200
 
 
 if __name__ == "__main__":

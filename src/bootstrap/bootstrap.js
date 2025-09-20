@@ -5,6 +5,7 @@ import { wireTaskbarButtons } from "../js/core/taskbar.js";
 import { buildStartMenu, wireStartToggle } from "../js/core/startMenu.js";
 import { Launcher } from "../js/core/launcher.js";
 import { WindowManager } from "../js/core/windowManager.js";
+import { logger } from "../js/utils/logger.js";
 
 function buildRegistry(mods) {
   return mods.map((m) => ({
@@ -17,6 +18,7 @@ function buildRegistry(mods) {
 
 async function main() {
   const ctx = { profileId: localStorage.getItem("profileId") || "default" };
+  ctx.logger = logger;
   const wm = new WindowManager();
   ctx.windowManager = wm;
 

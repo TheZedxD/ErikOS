@@ -85,3 +85,17 @@ def test_diagnostics_missing_icon():
         "Missing icon file: /icons/does-not-exist.png" in issue
         for issue in result.get("issues", [])
     )
+
+
+def test_log_client_error_endpoint(client):
+    payload = {"app": "tester", "message": "boom", "stack": "trace"}
+    resp = client.post("/api/log-client-error", json=payload)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data.get("ok") is True
+
+    resp = client.get("/api/diagnostics/run")
+    assert resp.status_code == 200
+    diag = resp.get_json()
+    assert "errors" in diag
+    assert any(err.get("app") == "tester" for err in diag.get("errors", []))
