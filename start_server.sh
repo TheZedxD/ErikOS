@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
 cd "$(dirname "$0")"
 
 if [ ! -x .venv/bin/python ]; then
@@ -12,9 +14,18 @@ if ! source .venv/bin/activate; then
   exit 1
 fi
 
-PORT=${PORT:-8000}
+export ROOT_DIR="${ROOT_DIR:-$PWD}"
+export HOST="${HOST:-127.0.0.1}"
+export PORT="${PORT:-8000}"
+if [ -n "${PYTHONPATH:-}" ]; then
+  export PYTHONPATH="$ROOT_DIR:$PYTHONPATH"
+else
+  export PYTHONPATH="$ROOT_DIR"
+fi
 
-echo "Starting ErikOS server on port $PORT ..."
+mkdir -p logs
+
+echo "Starting ErikOS server on ${HOST}:${PORT} ..."
 python -m DRIVE.app &
 SERVER_PID=$!
 
@@ -36,7 +47,14 @@ if [ -z "$READY" ]; then
   exit 1
 fi
 
-URL="http://127.0.0.1:$PORT/index.html"
+URL="http://${HOST}:${PORT}/index.html"
+echo "ErikOS is running at $URL"
+
+if command -v python >/dev/null 2>&1; then
+  python scripts/print_qr.py "$URL" || true
+fi
+
+echo "Logs directory: $ROOT_DIR/logs"
 if command -v xdg-open >/dev/null 2>&1; then
   xdg-open "$URL" >/dev/null 2>&1 &
 elif command -v open >/dev/null 2>&1; then
