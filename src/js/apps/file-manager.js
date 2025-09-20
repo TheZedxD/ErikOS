@@ -26,16 +26,23 @@ export function mount(winEl, ctx) {
 
   const toolbar = document.createElement('div');
   toolbar.classList.add('file-manager-toolbar');
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'File manager actions');
   const newFolderBtn = document.createElement('button');
   newFolderBtn.textContent = 'New Folder';
+  newFolderBtn.setAttribute('aria-label', 'Create new folder');
   const uploadBtn = document.createElement('button');
   uploadBtn.textContent = 'Upload';
+  uploadBtn.setAttribute('aria-label', 'Upload files');
   const renameBtn = document.createElement('button');
   renameBtn.textContent = 'Rename';
+  renameBtn.setAttribute('aria-label', 'Rename selected item');
   const deleteBtn = document.createElement('button');
   deleteBtn.textContent = 'Delete';
+  deleteBtn.setAttribute('aria-label', 'Delete selected item');
   const refreshBtn = document.createElement('button');
   refreshBtn.textContent = 'Refresh';
+  refreshBtn.setAttribute('aria-label', 'Refresh file list');
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.placeholder = 'Search';
@@ -43,8 +50,10 @@ export function mount(winEl, ctx) {
   viewToggle.classList.add('file-view-toggle');
   const listViewBtn = document.createElement('button');
   listViewBtn.textContent = 'List';
+  listViewBtn.setAttribute('aria-label', 'List view');
   const gridViewBtn = document.createElement('button');
   gridViewBtn.textContent = 'Grid';
+  gridViewBtn.setAttribute('aria-label', 'Grid view');
   viewToggle.append(listViewBtn, gridViewBtn);
 
   toolbar.append(

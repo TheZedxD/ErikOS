@@ -62,11 +62,18 @@ export function mount(winEl, ctx, fileData) {
   toolbar.style.gap = '4px';
   toolbar.style.flexWrap = 'wrap';
   toolbar.style.padding = '2px';
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Spreadsheet actions');
   const openBtn = document.createElement('button'); openBtn.textContent = 'Open';
+  openBtn.setAttribute('aria-label', 'Open spreadsheet');
   const saveBtn = document.createElement('button'); saveBtn.textContent = 'Save';
+  saveBtn.setAttribute('aria-label', 'Save spreadsheet');
   const addRowBtn = document.createElement('button'); addRowBtn.textContent = 'Add Row';
+  addRowBtn.setAttribute('aria-label', 'Add row');
   const addColBtn = document.createElement('button'); addColBtn.textContent = 'Add Column';
+  addColBtn.setAttribute('aria-label', 'Add column');
   const addSheetBtn = document.createElement('button'); addSheetBtn.textContent = 'Add Sheet';
+  addSheetBtn.setAttribute('aria-label', 'Add sheet');
   toolbar.append(openBtn, saveBtn, addRowBtn, addColBtn, addSheetBtn);
   container.append(tabsBar, toolbar);
 

@@ -15,6 +15,9 @@ export class WindowManager {
     const win = document.createElement("div");
     win.className = "window";
     win.dataset.id = id;
+    win.tabIndex = -1;
+    win.setAttribute("role", "dialog");
+    win.setAttribute("aria-modal", "false");
     const offset = (this.nextId - 2) * 30;
     win.style.left = `${100 + offset}px`;
     win.style.top = `${100 + offset}px`;
@@ -48,6 +51,7 @@ export class WindowManager {
     body.className = "window-body";
     const contentWrapper = document.createElement("div");
     contentWrapper.className = "content";
+    contentWrapper.tabIndex = 0;
     body.appendChild(contentWrapper);
     contentWrapper.appendChild(contentEl);
 
@@ -96,6 +100,57 @@ export class WindowManager {
 
     this._makeDraggable(info);
     this._makeResizable(info);
+
+    const handleKey = (event) => {
+      if (event.key === "Tab") {
+        const focusables = this._getFocusableElements(info.element);
+        if (focusables.length === 0) {
+          event.preventDefault();
+          info.element.focus({ preventScroll: true });
+          return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey
+      ) {
+        const target = event.target;
+        if (target && target.tagName) {
+          const tag = target.tagName.toLowerCase();
+          if (tag === "textarea") return;
+          if (tag === "button") return;
+          if (tag === "input" && target.type && target.type.toLowerCase() === "text") {
+            if (!target.dataset.submitOnEnter) return;
+          }
+        }
+        const defaultBtn = info.element.querySelector('button[data-default="true"]');
+        if (defaultBtn) {
+          event.preventDefault();
+          defaultBtn.click();
+        }
+      }
+    };
+    info.element.addEventListener("keydown", handleKey);
+    info.element.addEventListener(
+      "window-closed",
+      () => {
+        info.element.removeEventListener("keydown", handleKey);
+      },
+      { once: true },
+    );
 
     header.addEventListener("mousedown", () => this.focusWindow(id));
     win.addEventListener("mousedown", () => this.focusWindow(id));
@@ -155,6 +210,19 @@ export class WindowManager {
     info.element.style.display = "";
     info.element.classList.add("active");
     info.taskBtn?.classList.add("active");
+    const focusTargets = this._getFocusableElements(info.element);
+    const target = focusTargets[0] || info.element;
+    if (typeof target.focus === "function") {
+      requestAnimationFrame(() => {
+        if (!info.element.contains(document.activeElement)) {
+          try {
+            target.focus({ preventScroll: true });
+          } catch (_) {
+            /* ignore */
+          }
+        }
+      });
+    }
     window.dispatchEvent(new CustomEvent("window-focused", { detail: { id } }));
   }
 
@@ -288,10 +356,38 @@ export class WindowManager {
       idx = (idx + 1) % wins.length;
       this.focusWindow(wins[idx].id);
     }
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "w") {
+      e.preventDefault();
+      if (this.activeId) this.closeWindow(this.activeId);
+      return;
+    }
     if (e.altKey && e.key === "F4") {
       e.preventDefault();
       if (this.activeId) this.closeWindow(this.activeId);
     }
+    if (!e.altKey && !e.ctrlKey && !e.metaKey && e.key === "Escape") {
+      const dialogs = Array.from(document.querySelectorAll("dialog[open]"));
+      if (dialogs.length > 0) {
+        e.preventDefault();
+        const dialog = dialogs[dialogs.length - 1];
+        if (typeof dialog.close === "function") dialog.close();
+        return;
+      }
+      if (this.activeId) {
+        const info = this.windows.get(this.activeId);
+        if (info?.element?.dataset.modal === "true") {
+          e.preventDefault();
+          this.closeWindow(this.activeId);
+        }
+      }
+    }
+  }
+
+  _getFocusableElements(root) {
+    const selector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const nodes = Array.from(root.querySelectorAll(selector));
+    return nodes.filter((el) => el.offsetParent !== null || el === document.activeElement);
   }
 
   _ensureInViewport(info) {

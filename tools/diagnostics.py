@@ -143,6 +143,24 @@ def _check_icons_and_profiles(issues: list[str]) -> None:
     else:
         _log(f"icons dir -> {len(list(icons_dir.iterdir()))} files")
 
+    audit_script = BASE_DIR / "tools" / "icon_audit.js"
+    if audit_script.exists():
+        result = subprocess.run(
+            ["node", str(audit_script)],
+            capture_output=True,
+            text=True,
+        )
+        _log(f"icon audit -> {result.returncode}")
+        if result.stdout:
+            _log(result.stdout.strip())
+        if result.stderr:
+            _log(result.stderr.strip())
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout or "icon audit failed").strip()
+            issues.append(f"Icon audit failed: {message}")
+    else:
+        issues.append("icon audit script not found")
+
     profiles = BASE_DIR / "profiles.json"
     if profiles.exists():
         try:
