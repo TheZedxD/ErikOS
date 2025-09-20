@@ -1,5 +1,163 @@
 [
-  {"id":"notepad","title":"Notepad","icon":"/icons/notepad.png","entry":"/src/js/apps/notepad.js","comingSoon":true},
-  {"id":"file-manager","title":"File Manager","icon":"/icons/file-manager.png","entry":"/src/js/apps/file-manager.js","comingSoon":false},
-  {"id":"terminal","title":"Terminal","icon":"/icons/terminal.png","entry":"/src/js/apps/terminal.js","comingSoon":false}
+  {
+    "id": "notepad",
+    "title": "Notepad",
+    "icon": "/icons/notepad.png",
+    "entry": "/src/js/apps/notepad.js",
+    "comingSoon": false
+  },
+  {
+    "id": "file-manager",
+    "title": "File Manager",
+    "icon": "/icons/file-manager.png",
+    "entry": "/src/js/apps/file-manager.js",
+    "comingSoon": false
+  },
+  {
+    "id": "terminal",
+    "title": "Terminal",
+    "icon": "/icons/terminal.png",
+    "entry": "/src/js/apps/terminal.js",
+    "comingSoon": false
+  },
+  {
+    "id": "settings",
+    "title": "Settings",
+    "icon": "/icons/settings.png",
+    "entry": "/src/js/apps/settings.js",
+    "comingSoon": false
+  },
+  {
+    "id": "link-manager",
+    "title": "Link Manager",
+    "icon": "/icons/link-manager.png",
+    "entry": "/src/js/apps/link-manager.js",
+    "comingSoon": false
+  },
+  {
+    "id": "processes",
+    "title": "System Processes",
+    "icon": "/icons/processes.png",
+    "entry": "/src/js/apps/processes.js",
+    "comingSoon": false
+  },
+  {
+    "id": "media-player",
+    "title": "Media Player",
+    "icon": "/icons/media-player.png",
+    "entry": "/src/js/apps/media-player.js",
+    "comingSoon": false
+  },
+  {
+    "id": "clock",
+    "title": "Clock",
+    "icon": "/icons/clock.png",
+    "entry": "/src/js/apps/clock.js",
+    "comingSoon": false
+  },
+  {
+    "id": "calendar",
+    "title": "Calendar",
+    "icon": "/icons/calendar.png",
+    "entry": "/src/js/apps/calendar.js",
+    "comingSoon": false
+  },
+  {
+    "id": "world-clock",
+    "title": "World Clocks",
+    "icon": "/icons/world-clock.png",
+    "entry": "/src/js/apps/world-clock.js",
+    "comingSoon": false
+  },
+  {
+    "id": "calculator",
+    "title": "Calculator",
+    "icon": "/icons/calculator.png",
+    "entry": "/src/js/apps/calculator.js",
+    "comingSoon": false
+  },
+  {
+    "id": "paint",
+    "title": "Paint",
+    "icon": "/icons/paint.png",
+    "entry": "/src/js/apps/paint.js",
+    "comingSoon": false
+  },
+  {
+    "id": "gallery",
+    "title": "Gallery",
+    "icon": "/icons/gallery.png",
+    "entry": "/src/js/apps/gallery.js",
+    "comingSoon": false
+  },
+  {
+    "id": "thermometer",
+    "title": "Temperature",
+    "icon": "/icons/thermometer.png",
+    "entry": "/src/js/apps/thermometer.js",
+    "comingSoon": false
+  },
+  {
+    "id": "recorder",
+    "title": "Recorder",
+    "icon": "/icons/recorder.png",
+    "entry": "/src/js/apps/recorder.js",
+    "comingSoon": false
+  },
+  {
+    "id": "volume",
+    "title": "Volume",
+    "icon": "/icons/media-player.png",
+    "entry": "/src/js/apps/volume.js",
+    "comingSoon": false
+  },
+  {
+    "id": "logs",
+    "title": "Logs",
+    "icon": "/icons/logs.png",
+    "entry": "/src/js/apps/logs.js",
+    "comingSoon": false
+  },
+  {
+    "id": "profiles",
+    "title": "Profile Manager",
+    "icon": "/icons/user.png",
+    "entry": "/src/js/apps/profiles.js",
+    "comingSoon": false
+  },
+  {
+    "id": "chat",
+    "title": "Chat",
+    "icon": "/icons/chat.png",
+    "entry": "/src/js/apps/chat.js",
+    "comingSoon": false
+  },
+  {
+    "id": "sheets",
+    "title": "Sheets",
+    "icon": "/icons/sheets.png",
+    "entry": "/src/js/apps/sheets.js",
+    "comingSoon": false
+  },
+  {
+    "id": "crypto",
+    "title": "Crypto Portfolio",
+    "icon": "/icons/processes.png",
+    "entry": "/src/js/apps/crypto.js",
+    "comingSoon": false
+  },
+  {
+    "id": "diagnostics",
+    "title": "Diagnostics",
+    "icon": "/icons/settings-icon.png",
+    "entry": "/src/js/apps/diagnostics.js",
+    "comingSoon": false
+  },
+  {
+    "id": "snip",
+    "title": "Snip",
+    "icon": "/icons/gallery.png",
+    "entry": "/src/js/apps/snip.js",
+    "comingSoon": false
+  }
 ]
