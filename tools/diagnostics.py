@@ -34,6 +34,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "diagnostics.log"
+CLIENT_ERROR_LOG = LOG_DIR / "client-errors.log"
 
 logger = logging.getLogger("diagnostics")
 logger.setLevel(logging.INFO)
@@ -45,6 +46,30 @@ logger.addHandler(handler)
 def _log(line: str) -> None:
     """Log ``line`` to the diagnostics log."""
     logger.info(line)
+
+
+def _load_recent_client_errors(limit: int = 50) -> list[dict[str, str]]:
+    if limit <= 0 or not CLIENT_ERROR_LOG.exists():
+        return []
+    try:
+        lines = CLIENT_ERROR_LOG.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return []
+    errors: list[dict[str, str]] = []
+    for record in lines[-limit:]:
+        try:
+            data = json.loads(record)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            normalised = {
+                "timestamp": str(data.get("timestamp", "")),
+                "app": str(data.get("app", "")),
+                "message": str(data.get("message", "")),
+                "stack": str(data.get("stack", "")),
+            }
+            errors.append(normalised)
+    return errors
 
 
 def _check_files(issues: list[str]) -> None:
@@ -152,4 +177,8 @@ def run_diagnostics(app: Flask) -> dict[str, Any]:
     _probe_endpoints(app, issues)
     _check_icons_and_profiles(issues)
     _check_application_icons(issues)
-    return {"ok": not issues, "issues": issues}
+    return {
+        "ok": not issues,
+        "issues": issues,
+        "errors": _load_recent_client_errors(50),
+    }

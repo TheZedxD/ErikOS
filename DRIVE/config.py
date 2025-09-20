@@ -58,10 +58,13 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     terminal_whitelist: list[str] = field(
         default_factory=lambda: _split_csv(
-            os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping,ollama")
+            os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping,ollama,cat,type")
         )
     )
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
+    terminal_timeout_seconds: int = int(
+        os.getenv("TERMINAL_TIMEOUT_SECONDS", "5")
+    )
 
 
 settings = Settings()
