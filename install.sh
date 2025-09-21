@@ -1,72 +1,57 @@
 #!/usr/bin/env bash
 set -euo pipefail
+IFS=$'\n\t'
 
-cd "$(dirname "$0")"
+step() { printf '\n==> %s\n' "$1"; }
+ok() { printf '    ok: %s\n' "$1"; }
+skip() { printf '    skip: %s\n' "$1"; }
 
-log() {
-  echo "==> $*"
-}
-
-die() {
-  echo "Error: $*" >&2
-  exit 1
-}
-
-if [[ ! -f /etc/os-release ]]; then
-  die "/etc/os-release not found; unsupported operating system."
+step "Checking system"
+if ! grep -qiE '^(ID|ID_LIKE)=.*arch' /etc/os-release; then
+    echo "This installer supports Arch Linux and derivatives only." >&2
+    exit 1
 fi
+ok "Arch-based system detected"
 
-# shellcheck disable=SC1091
-. /etc/os-release
-
-is_supported=false
-for candidate in "${ID:-}" ${ID_LIKE:-}; do
-  case "$candidate" in
-    arch|cachyos)
-      is_supported=true
-      break
-      ;;
-  esac
-done
-
-if [[ $is_supported != true ]]; then
-  die "This installer supports Arch Linux and CachyOS only."
-fi
-
-if ! command -v pacman >/dev/null 2>&1; then
-  die "pacman package manager is required but was not found."
-fi
-
-if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
-  SUDO=sudo
+step "1. System sync & packages"
+sudo pacman -Syu --needed --noconfirm git curl unzip xdg-utils ca-certificates openssl python python-pip ffmpeg
+ok "Core packages ready"
+if sudo pacman -S --needed --noconfirm base-devel; then
+    ok "Optional base-devel installed"
 else
-  SUDO=""
+    skip "base-devel (optional)"
 fi
 
-log "Updating system packages (pacman -Syu)..."
-$SUDO pacman -Syu --noconfirm
-
-log "Installing required packages via pacman..."
-$SUDO pacman -S --needed --noconfirm \
-  python python-pip nodejs npm ffmpeg xdg-utils portaudio alsa-lib \
-  libjpeg-turbo zlib openssl ca-certificates xclip wl-clipboard
-
-log "Creating Python virtual environment (.venv)..."
-python -m venv .venv
-
-log "Installing Python dependencies from requirements.txt..."
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
-
-if [[ -f package.json ]]; then
-  log "Installing Node.js dependencies (npm ci)..."
-  npm ci
-
-  log "Building Node.js project (npm run build)..."
-  npm run build --if-present
+PY_BIN="python"
+if ! command -v "$PY_BIN" >/dev/null 2>&1; then
+    PY_BIN="python3"
 fi
 
-log "Ensuring required directories exist..."
+step "2. Python virtualenv"
+if [ -d .venv ]; then
+    skip ".venv already exists"
+else
+    "$PY_BIN" -m venv .venv
+    ok "Created .venv"
+fi
+
+step "3. Upgrade pip tooling"
+# shellcheck source=/dev/null
+. .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+ok "pip, setuptools, wheel upgraded"
+
+step "4. Project requirements"
+if [ -f requirements.txt ]; then
+    python -m pip install -r requirements.txt
+    ok "requirements.txt installed"
+else
+    skip "requirements.txt missing"
+fi
+
+step "5. Data directories"
 mkdir -p DRIVE/users logs
+ok "DRIVE/users and logs ready"
 
-log "Installation complete."
+step "6. Next steps"
+echo "Run ./start_server.sh"
