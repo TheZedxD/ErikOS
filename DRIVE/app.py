@@ -26,7 +26,7 @@ import tempfile
 import time
 import traceback
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
@@ -394,11 +394,12 @@ def serve_static(filename: str):
 @app.route("/api/status")
 def status() -> "Response":
     """Return health information for readiness checks."""
+    now = datetime.now(UTC).isoformat()
     return jsonify(
         {
             "status": "ok",
             "version": __version__,
-            "time": datetime.utcnow().isoformat(),
+            "time": now.replace("+00:00", "Z"),
         }
     )
 
@@ -839,7 +840,7 @@ def log_client_error():
     message = str(data.get("message") or "")
     stack = str(data.get("stack") or "")
     app_id = str(data.get("app") or "unknown")
-    timestamp = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    timestamp = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     entry = {
         "timestamp": timestamp,
         "app": app_id,
