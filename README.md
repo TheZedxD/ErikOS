@@ -36,7 +36,26 @@ five to keep things tidy.
 Requires **Python 3.12+**. On Python 3.13, Pillow 11+ is automatically selected
 from the wheels defined in `requirements.txt`.
 
+## Requirements
+
+- Python 3.12 or newer with the `venv` module available
+- Ability to install Python packages from PyPI (pip is bundled with Python 3.12+)
+
 ### Quick start
+#### Arch / CachyOS
+```bash
+sudo pacman -Syu
+git clone https://github.com/erik/ErikOS.git
+cd ErikOS
+./install.sh
+./start_server.sh
+```
+
+> **Vanilla Arch users:** If you would like to add the CachyOS repositories
+> for their optimized packages, run `tools/add_cachyos_repos.sh`. For more
+> details, see the official CachyOS documentation:
+> https://wiki.cachyos.org/documentation/repository/
+
 #### Windows
 1. Double-click `install.bat` to create the virtual environment and install dependencies.
 2. Double-click `start_server.bat` to launch the server and open the app.
