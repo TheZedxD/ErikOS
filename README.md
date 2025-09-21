@@ -41,6 +41,9 @@ from the wheels defined in `requirements.txt`.
 1. Double-click `install.bat` to create the virtual environment and install dependencies.
 2. Double-click `start_server.bat` to launch the server and open the app.
 
+> **Windows SmartScreen tip:** If the batch files are blocked, right-click them,
+> choose **Properties** and check **Unblock** before running.
+
 #### macOS/Linux
 1. Run `./install.sh` to set up the virtual environment and dependencies.
 2. Run `./start_server.sh` to start the server and open the app.
@@ -69,6 +72,9 @@ After installing, run the test suite with:
 - **Ollama not found**: install the `ollama` CLI and make sure it is on your `PATH`.
 - **Permission denied** when accessing files: ensure the server has rights to the path and grant access when the browser prompts.
 - **Server exits or can't write logs**: ensure the project folder is writable and not blocked by Windows *Controlled Folder Access*.
+- **Windows blocked the launcher scripts**: Unblock the `.bat` files via their
+  **Properties** dialog or run the shell as an administrator so they can create
+  the `logs` folder.
 
 ## Security
 The backend only executes whitelisted terminal commands and protects file APIs against path traversal.
