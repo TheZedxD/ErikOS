@@ -31,49 +31,69 @@ API requests must include the profile's `X-User-Id` (or a `user` parameter)
 so the backend can resolve paths within that sandbox. Profiles are limited to
 five to keep things tidy.
 
-## Installation
-
-Requires **Python 3.12+**. On Python 3.13, Pillow 11+ is automatically selected
-from the wheels defined in `requirements.txt`.
-
 ## Requirements
 
-- Python 3.12 or newer with the `venv` module available
-- Ability to install Python packages from PyPI (pip is bundled with Python 3.12+)
+- Python 3.12+ (Windows: use the Python launcher `py -3.12`)
+- Chromium-based browser (Chrome/Edge/Brave) for best support (File System Access API, media capture)
+- Optional: FFmpeg on Windows (add to `PATH`) for broader media compatibility
+- Optional: Ollama running locally for the Chat app (<https://ollama.com/>)
 
-### Quick start
-#### Arch / CachyOS
+## Install
+
+**Linux (Arch/CachyOS, Ubuntu/Mint):**
+
 ```bash
-sudo pacman -Syu
-git clone https://github.com/erik/ErikOS.git
-cd ErikOS
 ./install.sh
+```
+
+**Windows:**
+
+```
+install.bat
+```
+
+## Start
+
+**Linux:**
+
+```bash
 ./start_server.sh
 ```
 
-> **Vanilla Arch users:** If you would like to add the CachyOS repositories
-> for their optimized packages, run `tools/add_cachyos_repos.sh`. For more
-> details, see the official CachyOS documentation:
-> https://wiki.cachyos.org/documentation/repository/
+**Windows:**
 
-#### Windows
-1. Double-click `install.bat` to create the virtual environment and install dependencies.
-2. Double-click `start_server.bat` to launch the server and open the app.
-
-> **Windows SmartScreen tip:** If the batch files are blocked, right-click them,
-> choose **Properties** and check **Unblock** before running.
-
-#### macOS/Linux
-1. Run `./install.sh` to set up the virtual environment and dependencies.
-2. Run `./start_server.sh` to start the server and open the app.
-
-The server will open your default browser to the correct URL and reuse the
-virtual environment on subsequent runs. You can also launch it cross-platform
-with the Python script:
-
-```bash
-python scripts/start.py --port 8000
 ```
+start_server.bat
+```
+
+The browser opens automatically at <http://127.0.0.1:8000/>.
+
+## LAN Access (optional)
+
+Edit `.env` and set:
+
+```
+HOST=0.0.0.0
+```
+
+Then access from another device via `http://<your-computer-LAN-IP>:8000/`. Firewall rules may be required.
+
+## Features & External Services
+
+- **Chat (LLM):** Requires Ollama running locally. If not installed, the Chat app will show a connection error.
+- **Crypto tracker:** Needs internet for live price refresh. Offline mode shows saved amounts only; prices cannot update without internet.
+- **Sound recorder:** Uses browser mic permissions (no server codec needed). Grant permission when prompted.
+
+## Terminal Safety
+
+The terminal app allows only whitelisted commands (configurable via `.env` → `TERMINAL_WHITELIST`) and enforces a timeout (`TERMINAL_TIMEOUT_SECONDS`).
+
+## Roadmap / Not Yet Implemented
+
+The “Recipe Saver” and “YouTube Downloader” apps are planned but not included yet. They are intentionally not visible so they won’t break the UI. Future implementations will:
+
+- **Recipe Saver:** simple CRUD that stores recipes under `DRIVE/users/<profile>/recipes/`
+- **YouTube Downloader:** integrate `yt-dlp` via a backend endpoint with progress display
 
 ## Testing
 
