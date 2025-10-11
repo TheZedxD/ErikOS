@@ -1,57 +1,62 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
 
-step() { printf '\n==> %s\n' "$1"; }
-ok() { printf '    ok: %s\n' "$1"; }
-skip() { printf '    skip: %s\n' "$1"; }
+RED() { printf "\033[31m%s\033[0m\n" "$*"; }
+GRN() { printf "\033[32m%s\033[0m\n" "$*"; }
+BLU() { printf "\033[34m%s\033[0m\n" "$*"; }
 
-step "Checking system"
-if ! grep -qiE '^(ID|ID_LIKE)=.*arch' /etc/os-release; then
-    echo "This installer supports Arch Linux and derivatives only." >&2
-    exit 1
-fi
-ok "Arch-based system detected"
+step(){ BLU "==> $*"; }
+ok(){ GRN "✔ $*"; }
 
-step "1. System sync & packages"
-sudo pacman -Syu --needed --noconfirm git curl unzip xdg-utils ca-certificates openssl python python-pip ffmpeg
-ok "Core packages ready"
-if sudo pacman -S --needed --noconfirm base-devel; then
-    ok "Optional base-devel installed"
+step "Detecting distro"
+IDLIKE="$(. /etc/os-release; echo "${ID_LIKE:-$ID}")"
+
+if echo "$IDLIKE" | grep -qi arch; then
+  step "Arch-based detected"
+  sudo pacman -Syu --needed --noconfirm python python-pip python-virtualenv ffmpeg base-devel ca-certificates openssl
+elif echo "$IDLIKE" | grep -qi debian; then
+  step "Debian/Ubuntu-based detected"
+  sudo apt-get update
+  sudo apt-get install -y \
+    python3 python3-venv python3-pip ffmpeg build-essential \
+    libssl-dev libffi-dev libjpeg-dev zlib1g-dev ca-certificates
 else
-    skip "base-devel (optional)"
+  RED "Unsupported distro. Please install: python3 (>=3.12), python3-venv, python3-pip, ffmpeg, build tools."
+  RED "Then run: python3 -m venv .venv && . .venv/bin/activate && pip install -U pip && pip install -r requirements.txt"
+  exit 1
 fi
+ok "System packages installed"
 
-PY_BIN="python"
-if ! command -v "$PY_BIN" >/dev/null 2>&1; then
-    PY_BIN="python3"
+step "Checking Python version >= 3.12"
+PYV=$(python3 - <<'PY'
+import sys
+print(".".join(map(str, sys.version_info[:3])))
+PY
+)
+PYMAJOR=$(echo "$PYV" | cut -d. -f1)
+PYMINOR=$(echo "$PYV" | cut -d. -f2)
+if [ "$PYMAJOR" -lt 3 ] || { [ "$PYMAJOR" -eq 3 ] && [ "$PYMINOR" -lt 12 ]; }; then
+  RED "Found Python $PYV. Python 3.12+ required."
+  RED "On Ubuntu/Mint, consider using deadsnakes PPA or pyenv to install Python 3.12."
+  exit 1
 fi
+ok "Python $PYV OK"
 
-step "2. Python virtualenv"
-if [ -d .venv ]; then
-    skip ".venv already exists"
-else
-    "$PY_BIN" -m venv .venv
-    ok "Created .venv"
-fi
-
-step "3. Upgrade pip tooling"
-# shellcheck source=/dev/null
+step "Creating virtualenv"
+python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-ok "pip, setuptools, wheel upgraded"
+pip install -U pip setuptools wheel
+pip install -r requirements.txt
+ok "Python dependencies installed"
 
-step "4. Project requirements"
-if [ -f requirements.txt ]; then
-    python -m pip install -r requirements.txt
-    ok "requirements.txt installed"
-else
-    skip "requirements.txt missing"
-fi
-
-step "5. Data directories"
+step "Preparing directories and env"
 mkdir -p DRIVE/users logs
-ok "DRIVE/users and logs ready"
+[ -f .env ] || cp -n .env.sample .env
+ok "Folders and .env ready"
 
-step "6. Next steps"
-echo "Run ./start_server.sh"
+GRN "Installation complete."
+echo
+echo "Run the server with:"
+echo "  ./start_server.sh"
+echo
+echo "To allow LAN access, edit .env and set HOST=0.0.0.0"
