@@ -19,6 +19,11 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BASE_DIR / ".env")
 
 
+def get_env_list(name: str, default_csv: str) -> list[str]:
+    raw = os.environ.get(name, default_csv)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
@@ -42,6 +47,19 @@ def _root_dir() -> Path:
     return candidate
 
 
+TERMINAL_TIMEOUT_SECONDS = int(os.environ.get("TERMINAL_TIMEOUT_SECONDS", "10"))
+TERMINAL_WHITELIST = get_env_list(
+    "TERMINAL_WHITELIST",
+    "echo,ls,dir,uname,date,whoami,ping,cat",
+)
+
+
+def get_allowed_commands() -> set[str]:
+    """Return the set of allowed terminal command basenames."""
+
+    return {cmd.lower() for cmd in TERMINAL_WHITELIST}
+
+
 @dataclass
 class Settings:
     host: str = os.getenv("HOST", "127.0.0.1")
@@ -57,14 +75,10 @@ class Settings:
     root_dir: Path = field(default_factory=_root_dir)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     terminal_whitelist: list[str] = field(
-        default_factory=lambda: _split_csv(
-            os.getenv("TERMINAL_WHITELIST", "ls,dir,echo,ping,ollama,cat,type")
-        )
+        default_factory=lambda: list(TERMINAL_WHITELIST)
     )
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
-    terminal_timeout_seconds: int = int(
-        os.getenv("TERMINAL_TIMEOUT_SECONDS", "5")
-    )
+    terminal_timeout_seconds: int = TERMINAL_TIMEOUT_SECONDS
 
 
 settings = Settings()

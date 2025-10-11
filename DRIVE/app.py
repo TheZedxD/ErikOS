@@ -40,7 +40,11 @@ from werkzeug.utils import secure_filename
 import requests
 
 from tools.diagnostics import run_diagnostics
-from .config import settings
+from .config import (
+    settings,
+    get_allowed_commands,
+    TERMINAL_TIMEOUT_SECONDS,
+)
 from .__version__ import __version__
 
 BASE_DIR = settings.root_dir
@@ -194,9 +198,9 @@ def _load_state() -> dict[int, str]:
 
 
 # Whitelist of allowed shell commands for execute_command.
-ALLOWED_COMMANDS = {cmd.lower() for cmd in settings.terminal_whitelist}
+ALLOWED_COMMANDS = get_allowed_commands()
 MAX_COMMAND_LENGTH = 2000
-TERMINAL_TIMEOUT = max(1, settings.terminal_timeout_seconds)
+TERMINAL_TIMEOUT = max(1, TERMINAL_TIMEOUT_SECONDS)
 
 # Registry for asynchronous command execution
 command_jobs: dict[str, dict[str, object]] = {}
@@ -770,13 +774,16 @@ def execute_command():
     if not tokens:
         return json_error("Empty command")
 
-    if tokens[0].lower() not in ALLOWED_COMMANDS:
+    command_name = os.path.basename(tokens[0]).lower()
+    if command_name not in ALLOWED_COMMANDS:
         return json_error("Command not permitted")
 
     job_id = uuid.uuid4().hex
     buffer = StringIO()
 
     def _run():
+        job_status = "finished"
+        error_message: str | None = None
         try:
             if _is_windows():
                 popen_args = ["cmd", "/c", cmd_line]
@@ -799,20 +806,28 @@ def execute_command():
             except subprocess.TimeoutExpired:
                 proc.kill()
                 out, err = proc.communicate()
-                buffer.write(
-                    ((out or "") + (err or ""))
-                    + f"\nCommand timed out after {TERMINAL_TIMEOUT} seconds"
-                )
+                buffer.write((out or "") + (err or ""))
                 command_jobs[job_id]["returncode"] = -1
+                timeout_message = (
+                    f"Command timed out after {TERMINAL_TIMEOUT} seconds"
+                )
+                error_message = timeout_message
+                job_status = "error"
             except Exception as exc:  # pragma: no cover - best effort
                 buffer.write(str(exc))
                 command_jobs[job_id]["returncode"] = -1
+                error_message = str(exc)
+                job_status = "error"
         except Exception as exc:  # pragma: no cover - propagate to job
             buffer.write(str(exc))
             command_jobs[job_id]["returncode"] = -1
+            error_message = str(exc)
+            job_status = "error"
         finally:
-            command_jobs[job_id]["status"] = "finished"
+            command_jobs[job_id]["status"] = job_status
             command_jobs[job_id]["output"] = buffer.getvalue().strip()
+            if error_message:
+                command_jobs[job_id]["error"] = error_message
 
     command_jobs[job_id] = {"status": "running"}
     thread = threading.Thread(target=_run, daemon=True)
@@ -831,6 +846,9 @@ def command_status(job_id: str):
             "returncode": job.get("returncode", 0),
             "output": job.get("output", ""),
         })
+    if job.get("status") == "error":
+        message = job.get("error") or "Command failed"
+        return json_error(message, 408)
     return jsonify({"status": "running"})
 
 
