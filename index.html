@@ -20,34 +20,37 @@
       <div id="taskbar-windows"></div>
       <div id="tray" class="system-tray">
         <div class="tray-icon-wrapper">
-          <img id="tray-links-icon" 
-               alt="Links" 
-               src="/icons/link-manager.png" 
-               width="20" 
-               height="20" 
+          <img id="tray-links-icon"
+               alt="Links"
+               src="/icons/link-manager.png"
+               width="20"
+               height="20"
                class="tray-icon" />
         </div>
         <div class="tray-icon-wrapper">
-          <img id="tray-volume-icon" 
-               alt="Volume" 
-               src="/icons/media-player.png" 
-               width="20" 
-               height="20" 
+          <img id="tray-volume-icon"
+               alt="Volume"
+               src="/icons/media-player.png"
+               width="20"
+               height="20"
                class="tray-icon" />
         </div>
         <div class="tray-icon-wrapper">
-          <img id="tray-snip-icon" 
-               alt="Snip" 
-               src="/icons/recorder.png" 
-               width="20" 
-               height="20" 
+          <img id="tray-snip-icon"
+               alt="Snip"
+               src="/icons/recorder.png"
+               width="20"
+               height="20"
                class="tray-icon" />
         </div>
       </div>
+      <div id="system-clock" class="system-clock"></div>
     </div>
     <div id="start-menu" role="menu" hidden><ul id="start-app-list"></ul></div>
+    <div id="context-menu" style="display: none;"></div>
+    <div id="spotlight" style="display: none;"></div>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
-    <script type="module" src="/src/bootstrap/bootstrap.js"></script>
+    <script src="/main.js"></script>
   </body>
 </html>
 
