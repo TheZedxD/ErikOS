@@ -1,9 +1,0 @@
-{
-  "type": "module",
-  "scripts": {
-    "dev": "python scripts/start.py",
-    "build": "python scripts/package.py --overwrite",
-    "test": "node tools/verify-app-registry.js && node tests/test_frontend.js && node tests/windowManager.test.js && node tests/notepad.test.js",
-    "diagnostics": "python scripts/run_diagnostics.py"
-  }
-}

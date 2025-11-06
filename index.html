@@ -1,60 +1,85 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ErikOS</title>
-    <link rel="icon" href="/favicon.png" type="image/png" />
-    <link rel="stylesheet" href="/style.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css"
-    />
-  </head>
-  <body>
-    <div id="desktop"></div>
-    <div id="windows-root"></div>
-    <div id="taskbar">
-      <button id="start-button">Start</button>
-      <div id="taskbar-windows"></div>
-      <div id="tray" class="system-tray">
-        <div class="tray-icon-wrapper">
-          <img id="tray-links-icon"
-               alt="Links"
-               src="/icons/link-manager.png"
-               width="20"
-               height="20"
-               class="tray-icon" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ErikOS - Windows 2000 Desktop</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Desktop Area -->
+    <div id="desktop">
+        <!-- Desktop Icons -->
+        <div class="desktop-icons">
+            <div class="desktop-icon" data-app="notepad">
+                <div class="icon">📝</div>
+                <div class="icon-label">Notepad</div>
+            </div>
+            <div class="desktop-icon" data-app="paint">
+                <div class="icon">🎨</div>
+                <div class="icon-label">Paint</div>
+            </div>
+            <div class="desktop-icon" data-app="files">
+                <div class="icon">📁</div>
+                <div class="icon-label">My Files</div>
+            </div>
+            <div class="desktop-icon" data-app="calculator">
+                <div class="icon">🔢</div>
+                <div class="icon-label">Calculator</div>
+            </div>
+            <div class="desktop-icon" data-app="settings">
+                <div class="icon">⚙️</div>
+                <div class="icon-label">Settings</div>
+            </div>
         </div>
-        <div class="tray-icon-wrapper">
-          <img id="tray-volume-icon"
-               alt="Volume"
-               src="/icons/media-player.png"
-               width="20"
-               height="20"
-               class="tray-icon" />
-        </div>
-        <div class="tray-icon-wrapper">
-          <img id="tray-snip-icon"
-               alt="Snip"
-               src="/icons/recorder.png"
-               width="20"
-               height="20"
-               class="tray-icon" />
-        </div>
-      </div>
-      <div id="system-clock" class="system-clock"></div>
-    </div>
-    <div id="start-menu" role="menu" hidden>
-      <input type="text" id="start-search" placeholder="Search applications..." />
-      <ul id="start-app-list"></ul>
-      <button id="start-logout-btn">Logout</button>
-    </div>
-    <div id="context-menu" style="display: none;"></div>
-    <div id="spotlight" style="display: none;"></div>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
-    <script src="/main.js"></script>
-  </body>
-</html>
 
+        <!-- Windows Container -->
+        <div id="windows-container"></div>
+    </div>
+
+    <!-- Taskbar -->
+    <div id="taskbar">
+        <button id="start-button">
+            <span class="start-icon">🪟</span>
+            <span class="start-text">Start</span>
+        </button>
+        <div id="taskbar-items"></div>
+        <div id="system-tray">
+            <span id="clock">12:00 PM</span>
+        </div>
+    </div>
+
+    <!-- Start Menu -->
+    <div id="start-menu" class="hidden">
+        <div class="start-menu-header">
+            <div class="start-logo">ErikOS</div>
+        </div>
+        <div class="start-menu-items">
+            <div class="start-menu-item" data-app="notepad">
+                <span class="menu-icon">📝</span>
+                <span class="menu-text">Notepad</span>
+            </div>
+            <div class="start-menu-item" data-app="paint">
+                <span class="menu-icon">🎨</span>
+                <span class="menu-text">Paint</span>
+            </div>
+            <div class="start-menu-item" data-app="files">
+                <span class="menu-icon">📁</span>
+                <span class="menu-text">My Files</span>
+            </div>
+            <div class="start-menu-item" data-app="calculator">
+                <span class="menu-icon">🔢</span>
+                <span class="menu-text">Calculator</span>
+            </div>
+            <div class="start-menu-separator"></div>
+            <div class="start-menu-item" data-app="settings">
+                <span class="menu-icon">⚙️</span>
+                <span class="menu-text">Settings</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

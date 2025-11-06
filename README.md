@@ -1,125 +1,123 @@
-# Win95-Style Browser Desktop
+# ErikOS - Windows 2000 Desktop Emulator
 
-## Overview
-A Windows 95 inspired desktop environment that runs entirely in the browser. A lightweight Flask backend enables file access, terminal commands and other utilities.
+A nostalgic Windows 2000-style desktop environment that runs entirely in your browser! Experience the retro computing era with a clean, functional desktop interface featuring draggable windows, a taskbar, and classic apps.
 
 ## Features
-- **Desktop** with icons, start menu and taskbar
-- **Notepad** text editor
-  - Auto-saves your work in the browser
-- **File Manager** for browsing and manipulating files
-- **Terminal** executing a whitelist of safe commands
-- **System Monitor** for background scripts
-- **Crypto Portfolio** tracker
-- **Chat** interface for local Ollama models
-- **Paint** canvas
-- **Sheets** spreadsheet
-- **Gallery** image viewer
-- **Clocks & Calendar** including world clocks
-- **Temperature Converter**
-- **Sound Recorder**
-- **Volume** control
-- **Logs** viewer
-- **Profile Manager** for up to 5 users
-- **Switch User / Log Out** directly from the Start menu
-- **Per-user file storage** sandboxed under `DRIVE/users/<id>`
-- **Diagnostics** self-check tool
 
-## User data
-Each profile's files are isolated in `DRIVE/users/<id>` on the server. File
-API requests must include the profile's `X-User-Id` (or a `user` parameter)
-so the backend can resolve paths within that sandbox. Profiles are limited to
-five to keep things tidy.
+- **Windows 2000 Aesthetic** - Authentic retro blue gradient desktop and UI
+- **Full Window Management**
+  - Drag windows anywhere on the desktop
+  - Minimize, maximize, and close buttons
+  - Click to focus windows (brings them to front)
+  - Double-click title bar to maximize
+  - Taskbar buttons for all open windows
+- **Desktop Icons** - Click to select, double-click to launch apps
+- **Start Menu** - Classic Windows-style start menu
+- **Built-in Apps**
+  - 📝 Notepad - Text editor with toolbar
+  - 🎨 Paint - Simple drawing canvas
+  - 📁 My Files - File browser
+  - 🔢 Calculator - Basic calculator
+  - ⚙️ Settings - System settings and about info
+- **System Tray** - Live clock display
+
+## Screenshots
+
+Desktop with multiple windows open, featuring the classic Windows 2000 look and feel.
 
 ## Requirements
 
-- Python 3.12+ (Windows: use the Python launcher `py -3.12`)
-- Chromium-based browser (Chrome/Edge/Brave) for best support (File System Access API, media capture)
-- Optional: FFmpeg on Windows (add to `PATH`) for broader media compatibility
-- Optional: Ollama running locally for the Chat app (<https://ollama.com/>)
+- **Python 3.8+** (for the web server)
+- **Modern web browser** (Chrome, Firefox, Edge, Safari)
 
-## Install
+## Quick Start
 
-**Linux (Arch/CachyOS, Ubuntu/Mint):**
+### Windows
+
+1. Double-click `install.bat` to install dependencies
+2. Double-click `start_server.bat` to launch ErikOS
+3. Browser will open automatically at http://127.0.0.1:8000
+
+### Linux / macOS
 
 ```bash
 ./install.sh
-```
-
-**Windows:**
-
-```
-install.bat
-```
-
-## Start
-
-**Linux:**
-
-```bash
 ./start_server.sh
 ```
 
-**Windows:**
+Browser will open automatically at http://127.0.0.1:8000
+
+## Usage
+
+### Desktop
+- **Single-click** icons to select them
+- **Double-click** icons to launch applications
+- **Click** the Start button or press the Windows key (future) to open the Start Menu
+
+### Windows
+- **Drag** windows by their title bar
+- **Click** anywhere on a window to bring it to front
+- **Minimize** - Hides window to taskbar
+- **Maximize** - Expands window to full screen
+- **Close** - Closes the window
+- **Double-click** title bar to toggle maximize
+
+### Taskbar
+- Click taskbar buttons to restore/minimize/focus windows
+- Live clock shows current time
+
+## Project Structure
 
 ```
-start_server.bat
-```
-
-The browser opens automatically at <http://127.0.0.1:8000/>.
-
-## LAN Access (optional)
-
-Edit `.env` and set:
-
-```
-HOST=0.0.0.0
-```
-
-Then access from another device via `http://<your-computer-LAN-IP>:8000/`. Firewall rules may be required.
-
-## Features & External Services
-
-- **Chat (LLM):** Requires Ollama running locally. If not installed, the Chat app will show a connection error.
-- **Crypto tracker:** Needs internet for live price refresh. Offline mode shows saved amounts only; prices cannot update without internet.
-- **Sound recorder:** Uses browser mic permissions (no server codec needed). Grant permission when prompted.
-
-## Terminal Safety
-
-The terminal app allows only whitelisted commands (configurable via `.env` → `TERMINAL_WHITELIST`) and enforces a timeout (`TERMINAL_TIMEOUT_SECONDS`).
-
-## Roadmap / Not Yet Implemented
-
-The “Recipe Saver” and “YouTube Downloader” apps are planned but not included yet. They are intentionally not visible so they won’t break the UI. Future implementations will:
-
-- **Recipe Saver:** simple CRUD that stores recipes under `DRIVE/users/<profile>/recipes/`
-- **YouTube Downloader:** integrate `yt-dlp` via a backend endpoint with progress display
-
-## Testing
-
-After installing, run the test suite with:
-
-```bash
-./run_tests.sh
+ErikOS/
+├── index.html          # Main HTML page
+├── style.css           # Windows 2000 styling
+├── main.js             # Window manager & apps
+├── DRIVE/
+│   └── app.py         # Simple Flask server
+├── scripts/
+│   └── start.py       # Server launcher
+├── install.bat         # Windows installer
+├── start_server.bat    # Windows launcher
+├── install.sh          # Linux/Mac installer
+└── start_server.sh     # Linux/Mac launcher
 ```
 
 ## Customization
-- Switch themes and wallpapers in **Settings**.
-- Use the **Icon Manager** to show/hide desktop icons or change their graphics.
 
-## Troubleshooting
-- **Ollama not found**: install the `ollama` CLI and make sure it is on your `PATH`.
-- **Permission denied** when accessing files: ensure the server has rights to the path and grant access when the browser prompts.
-- **Server exits or can't write logs**: ensure the project folder is writable and not blocked by Windows *Controlled Folder Access*.
-- **Windows blocked the launcher scripts**: Unblock the `.bat` files via their
-  **Properties** dialog or run the shell as an administrator so they can create
-  the `logs` folder.
+The project is designed to be simple and easy to modify:
 
-## Security
-The backend only executes whitelisted terminal commands and protects file APIs against path traversal.
+- **Add new apps**: Edit the `apps` object in `main.js`
+- **Change colors**: Modify the CSS variables in `style.css`
+- **Add desktop icons**: Add new `.desktop-icon` elements in `index.html`
 
-## Diagnostics
-Launch the *Diagnostics* app to verify repository health. Results are written to `logs/diagnostics.log`.
+## Technical Details
+
+- **Frontend**: Pure vanilla JavaScript, no frameworks
+- **Backend**: Minimal Flask server for static file serving
+- **Styling**: CSS with Windows 2000-inspired gradients and colors
+- **Window Management**: Custom JavaScript class-based system
+
+## Contributing
+
+Feel free to fork and improve! Some ideas for enhancements:
+
+- Add more apps (Browser, Music Player, Games)
+- Window resizing by dragging edges
+- Right-click context menus
+- File persistence (save notepad files, etc.)
+- Themes (Windows XP, Windows 7, etc.)
+- Sound effects
+- Keyboard shortcuts
+
+## License
+
+Free to use and modify for your own projects!
+
+## Credits
+
+Created as a nostalgic tribute to Windows 2000 and early 2000s computing.
 
 ---
-Enjoy your nostalgic browsing experience!
+
+Enjoy your trip down memory lane! 🪟

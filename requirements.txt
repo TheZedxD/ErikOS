@@ -1,5 +1,1 @@
 Flask>=2.3,<4
-Pillow>=10,<12
-psutil>=5.9,<6
-requests>=2.31,<3
-python-dotenv>=1.0,<2

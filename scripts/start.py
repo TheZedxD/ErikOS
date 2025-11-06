@@ -1,45 +1,47 @@
 #!/usr/bin/env python3
-import os, sys, time, subprocess, webbrowser
+"""
+Simple launcher for ErikOS
+Opens browser and starts the Flask server
+"""
+import os
+import sys
+import time
+import subprocess
+import webbrowser
 from pathlib import Path
 
-def load_env():
-    try:
-        from dotenv import load_dotenv, find_dotenv
-        load_dotenv(find_dotenv())
-    except Exception:
-        pass
-
-def host_port():
-    host = os.environ.get("HOST", "127.0.0.1")
-    port = int(os.environ.get("PORT", "8000"))
-    return host, port
-
 def main():
+    # Get the repository root directory
     repo_root = Path(__file__).resolve().parents[1]
     os.chdir(repo_root)
-    load_env()
-    host, port = host_port()
 
-    env = os.environ.copy()
-    env.setdefault("HOST", str(host))
-    env.setdefault("PORT", str(port))
+    # Server settings
+    port = 8000
 
+    # Start the Flask server
+    print("Starting ErikOS server...")
     args = [sys.executable, "-u", "-m", "DRIVE.app"]
-    if len(sys.argv) > 1:
-        args.extend(sys.argv[1:])
+    proc = subprocess.Popen(args)
 
-    proc = subprocess.Popen(args, env=env)
+    # Wait a moment for server to start
     time.sleep(1.5)
-    local_url = f"http://127.0.0.1:{port}/"
+
+    # Open browser
+    url = f"http://127.0.0.1:{port}/"
+    print(f"Opening browser at {url}")
     try:
-        webbrowser.open(local_url)
+        webbrowser.open(url)
     except Exception:
-        pass
+        print(f"Could not open browser automatically. Please navigate to {url}")
+
+    # Wait for the server process
     try:
         proc.wait()
     except KeyboardInterrupt:
+        print("\nStopping server...")
         proc.terminate()
         proc.wait()
+
     return proc.returncode
 
 if __name__ == "__main__":
