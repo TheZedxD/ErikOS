@@ -1117,6 +1117,15 @@ function initDesktop() {
     populateStartMenu(searchInput.value);
   });
 
+  // Connect logout button
+  const logoutBtn = document.getElementById("start-logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      startMenu.style.display = "none";
+      logoutUser();
+    });
+  }
+
   startButton.addEventListener("click", (e) => {
     e.stopPropagation();
     const visible =

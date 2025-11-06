@@ -379,22 +379,64 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Remove the gap since the icon is no longer used. */
   width: 80px;
-  height: 100%;
+  height: 32px;
   margin: 0 4px;
   font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
   outline: none;
+  background: var(--button-bg);
+  border: 2px solid;
+  border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
+  transition: all 0.1s ease;
+}
+
+#start-button:hover {
+  filter: brightness(1.05);
+}
+
+#start-button:active {
+  border-color: var(--btn-border-dark) var(--btn-border-light) var(--btn-border-light) var(--btn-border-dark);
+  padding-top: 2px;
 }
 
 /* Area that holds window buttons in the taskbar */
 #taskbar-windows {
   flex: 1;
   display: flex;
-  align-items: center;
+  gap: 4px;
   overflow-x: auto;
-  height: 100%;
+  overflow-y: hidden;
+  padding: 4px;
+}
+
+.taskbar-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  min-width: 120px;
+  max-width: 200px;
+  height: 28px;
+  background: var(--button-bg);
+  border: 2px solid;
+  border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.taskbar-item:hover {
+  filter: brightness(1.05);
+}
+
+.taskbar-item.active {
+  border-color: var(--btn-border-dark) var(--btn-border-light) var(--btn-border-light) var(--btn-border-dark);
+  background: var(--selection-bg);
+  color: #ffffff;
 }
 
 /* Individual taskbar button */
@@ -440,7 +482,8 @@ body {
 }
 
 /* Window title bar */
-.window-header {
+.window-header,
+.title-bar {
   height: 24px;
   display: flex;
   align-items: center;
@@ -453,42 +496,63 @@ body {
   color: #ffffff;
   user-select: none;
   cursor: move;
+  font-weight: bold;
 }
 
 /* Inactive window title bar */
-.window:not(.active) .window-header {
+.window:not(.active) .window-header,
+.window:not(.active) .title-bar {
   background: linear-gradient(to right, var(--inactive-title), var(--inactive-title));
-  color: #000;
+  color: #c0c0c0;
 }
 
-.window-header .title {
+.window-header .title,
+.title-bar .title {
   flex: 1;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: 0.3px;
 }
 
-.window-header .window-controls {
+.window-header .window-controls,
+.title-bar .controls {
   display: flex;
   gap: 4px;
 }
 
-.window-header .window-controls button {
-  width: 16px;
-  height: 16px;
+.window-header .window-controls button,
+.title-bar .controls button {
+  width: 18px;
+  height: 18px;
   padding: 0;
   line-height: 16px;
   text-align: center;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: bold;
   cursor: pointer;
+  background: var(--button-bg);
+  border: 1px solid;
+  border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
 }
 
-.window-body {
+.window-header .window-controls button:hover,
+.title-bar .controls button:hover {
+  filter: brightness(1.1);
+}
+
+.window-header .window-controls button:active,
+.title-bar .controls button:active {
+  border-color: var(--btn-border-dark) var(--btn-border-light) var(--btn-border-light) var(--btn-border-dark);
+}
+
+.window-body,
+.window .content {
   flex: 1;
   background: var(--window-bg);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px;
-  font-size: 14px;
+  padding: 8px;
+  font-size: 13px;
   max-height: calc(100vh - 80px);
 }
 
@@ -640,20 +704,33 @@ body {
 /* Settings tabs styling */
 .settings-tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 2px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--btn-border-grey);
+  padding-bottom: 2px;
+  flex-wrap: wrap;
 }
 
 .settings-tabs button {
-  padding: 2px 6px;
+  padding: 6px 12px;
   cursor: pointer;
+  font-size: 13px;
+  background: var(--button-bg);
+  border: 2px solid;
+  border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
+  transition: all 0.1s ease;
+}
+
+.settings-tabs button:hover {
+  filter: brightness(1.05);
 }
 
 .settings-tabs button.active {
   background: var(--selection-bg);
-  color: var(--window-bg);
+  color: #ffffff;
   border-color: #000000 #ffffff #ffffff #000000;
-  padding: 3px 5px 1px 7px;
+  padding: 7px 11px 5px 13px;
+  font-weight: bold;
 }
 
 /* Visual feedback when dragging icons */
@@ -685,42 +762,57 @@ body {
   position: absolute;
   bottom: 40px;
   left: 0;
-  width: 240px;
+  width: 280px;
+  max-height: 500px;
   background: var(--window-bg);
   border: 2px solid var(--window-border-dark);
   box-shadow:
     0 0 0 1px var(--window-border-light) inset,
-    0 0 0 2px var(--window-border-dark) inset;
-  padding: 4px;
+    0 0 0 2px var(--window-border-dark) inset,
+    4px 4px 8px rgba(0, 0, 0, 0.3);
+  padding: 8px;
   flex-direction: column;
   z-index: 300;
   overflow: hidden;
   display: flex;
+  gap: 4px;
 }
 
 #start-search {
-  width: calc(100% - 8px);
-  margin: 4px 0 6px 0;
-  padding: 4px;
-  border: 1px solid var(--window-border-dark);
-  font-size: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 2px solid;
+  border-color: #808080 #ffffff #ffffff #808080;
+  background: #ffffff;
+  outline: none;
+}
+
+#start-search:focus {
+  border-color: #000080 #e0e0e0 #e0e0e0 #000080;
 }
 
 #start-app-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 200px;
+  max-height: 350px;
   overflow-y: auto;
-  font-size: 14px;
+  overflow-x: hidden;
+  font-size: 13px;
+  border: 1px solid var(--btn-border-grey);
+  background: var(--window-bg);
 }
 
 #start-app-list li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px;
+  gap: 10px;
+  padding: 6px 10px;
   cursor: pointer;
+  transition: background-color 0.1s ease;
+  user-select: none;
 }
 
 #start-app-list li:hover {
@@ -728,21 +820,37 @@ body {
   color: #ffffff;
 }
 
+#start-app-list li:active {
+  background: var(--title-gradient-light);
+  color: #ffffff;
+}
+
 #start-app-list img {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
 }
 
 #start-logout-btn {
-  margin-top: 8px;
-  padding: 4px;
-  font-size: 14px;
+  margin-top: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
   cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  background: var(--button-bg);
+  border: 2px solid;
+  border-color: var(--btn-border-light) var(--btn-border-dark) var(--btn-border-dark) var(--btn-border-light);
 }
 
 #start-logout-btn:hover {
-  background: var(--selection-bg);
-  color: #ffffff;
+  filter: brightness(1.05);
+}
+
+#start-logout-btn:active {
+  border-color: var(--btn-border-dark) var(--btn-border-light) var(--btn-border-light) var(--btn-border-dark);
+  padding: 7px 11px 5px 13px;
 }
 
 /* Login screen overlay */
@@ -1420,19 +1528,26 @@ body {
 
 .settings-section {
   margin-bottom: 12px;
-  padding: 8px;
+  padding: 12px;
   overflow-y: auto;
+  background: var(--window-bg);
 }
 
 .settings-section h3 {
   margin-top: 0;
-  margin-bottom: 4px;
-  font-size: 16px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--icon-text);
+  border-bottom: 1px solid var(--btn-border-grey);
+  padding-bottom: 4px;
 }
 
 .settings-section label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  margin-top: 8px;
+  font-size: 13px;
 }
 
 .settings-section select,

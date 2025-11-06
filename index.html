@@ -46,7 +46,11 @@
       </div>
       <div id="system-clock" class="system-clock"></div>
     </div>
-    <div id="start-menu" role="menu" hidden><ul id="start-app-list"></ul></div>
+    <div id="start-menu" role="menu" hidden>
+      <input type="text" id="start-search" placeholder="Search applications..." />
+      <ul id="start-app-list"></ul>
+      <button id="start-logout-btn">Logout</button>
+    </div>
     <div id="context-menu" style="display: none;"></div>
     <div id="spotlight" style="display: none;"></div>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.js"></script>
