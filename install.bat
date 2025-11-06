@@ -43,15 +43,23 @@ if errorlevel 1 (
 
 echo [4/7] Activating venv and upgrading pip
 call ".venv\Scripts\activate"
-python -m pip install -U pip setuptools wheel
+if errorlevel 1 (
+  echo ERROR: Failed to activate virtual environment.
+  echo.
+  pause
+  exit /b 1
+)
+python -m pip install -U pip setuptools wheel >nul 2>&1
 
 echo [5/7] Ensuring requirements.txt exists
 if not exist requirements.txt (
-  echo Flask>=2.3,<4>requirements.txt
-  echo Pillow>=10,<12>>requirements.txt
-  echo psutil>=5.9,<6>>requirements.txt
-  echo requests>=2.31,<3>>requirements.txt
-  echo python-dotenv>=1.0,<2>>requirements.txt
+  (
+    echo Flask^>=2.3,^<4
+    echo Pillow^>=10,^<12
+    echo psutil^>=5.9,^<6
+    echo requests^>=2.31,^<3
+    echo python-dotenv^>=1.0,^<2
+  ) > requirements.txt
 )
 
 echo [6/7] Installing Python deps (see logs\pip_windows.log)
